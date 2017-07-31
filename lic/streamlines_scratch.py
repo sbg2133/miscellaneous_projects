@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
+from magnetic_dipole import dipole
 plt.ion()
 fig, ax = plt.subplots(figsize = (8, 5))
 
@@ -15,50 +16,29 @@ class Streamline:
         self.s_back = []
         self.segs = []
         self.streamline = []
-        self.angles = []
 
-class VectorField:
-    """A vector field
-       @param xsize, ysize: x,y dimensions
-       @param potentials: 2-D array of scalar potentials
-       @param dx, dy: gradient of potentials in x,y direction"""
-    def __init__(self, x, y, dx, dy, potentials, interp = 1):
-        self.pot = potentials
-        self.y, self.x = y, x
-        self.dx, self.dy = dx, dy
-        del dx
-        del dy
-        del x
-        del y
-        del potentials
-        self.Psteps = 30
-        if (interp > 1):
-            self.pot = ndimage.zoom(self.pot, interp, order = 1)
-            self.y, self.x = np.mgrid[:self.pot.shape[0], :self.pot.shape[1]]
-            self.white = np.random.rand(self.pot.shape[0], self.pot.shape[1])
-            self.dy, self.dx = np.gradient(self.pot, np.diff(self.y[:2,0])[0],\
-                      np.diff(self.x[0,:2])[0])
-        self.white = np.random.rand(self.pot.shape[0], self.pot.shape[1])
+class VectorField():
+    """A vector field"""
+    #def __init__(self):
 
     def pix_idx(self, P):
         """Given (xcoord, ycoord), returns pixel indices"""
-        x_idx = np.where(self.x[0] == np.int(P[0]))[0][0]
-        y_idx = np.where(self.y[:,0] == np.int(P[1]))[0][0]
+        x_idx = np.where(x[0] == np.int(P[0]))[0][0]
+        y_idx = np.where(y[:,0] == np.int(P[1]))[0][0]
         return x_idx, y_idx
 
     def get_vector(self, P):
-        """Given pixel coord (x, y), returns vector (dx, dy)"""
+        """Returns the vector located at pixel coordinate P"""
         x_idx, y_idx = self.pix_idx(P)
-        dx, dy = self.dx[y_idx, x_idx], self.dy[y_idx, x_idx]
-        angle = np.degrees(np.arctan2(dy, dx))
-        return dx, dy, angle
+        vx, vy = dx[y_idx, x_idx], dy[y_idx, x_idx]
+        angle = np.degrees(np.arctan2(vy, vx))
+        return vx, vy, angle
 
     def plot_pot(self):
         """plots the scalar field"""
         ax = plt.gca()
-        im = ax.imshow(pot, origin = "lower", extent = [self.x[0].min(),\
-                 self.x[0].max(), self.y[:,0].min(),\
-                 self.y[:,0].max()])
+        im = ax.imshow(pot, origin = "lower", extent = [x[0].min(), x[0].max(),\
+                    y[:,0].min(), y[:,0].max()])
         return
 
     def plot_vectors(self, nskip = 1, pot = False):
@@ -67,44 +47,44 @@ class VectorField:
         ax = plt.gca()
         if pot:
             plot_pot()
-        mag = np.sqrt(self.dx**2 + self.dy**2)
-        ax.quiver(self.x[skip], self.y[skip], (self.dx/mag)[skip], (self.dy/mag)[skip],\
+        mag = np.sqrt(dx**2 + dy**2)
+        ax.quiver(x[skip], y[skip], (dx/mag)[skip], (dy/mag)[skip],\
                  angles = 'xy', units = 'xy', scale_units = 'xy', headwidth = 2,\
                  headaxislength = 2, headlength = 2, scale = 1)
-        ax.set(xticks = (np.arange(self.x[0].min(), self.x[0].max(), 5)),\
-              yticks = (np.arange(self.y[:,0].min(), self.y[:,0].max(), 5)),\
+        ax.set(xticks = (np.arange(x[0].min(), x[0].max(), 5)),\
+              yticks = (np.arange(y[:,0].min(), y[:,0].max(), 5)),\
               aspect=1, title='Scratch', xlabel = 'x', ylabel = 'y')
         plt.margins(0,0)
         return
 
     def new_P(self, idx, start, temp_pos, back = False):
-        """Given a pixel index int(x,y) and streamline instance (sl),
-           uses Euler's method to advect the streamline to the next
-           position.
+        """Uses Euler's method to advect the streamline to the next position.
            @param idx: integers corresponding to start pixel position
-           @param temp_stream: a list to hold the advected positions
-           returns: -1 on failure, 0 on success"""
+           @param start: the starting coordinates (center of streamline)
+           @param temp_pos: buffer for new advected position
+           returns: temp_pos
+                    seg: distance to the previous temp_pos"""
         vector = self.get_vector
         if (idx == 1):
-            dx, dy = vector(start)[:2]
+            vx, vy = vector(start)[:2]
         else:
-            dx, dy, angle = vector(temp_pos[idx - 1])
-            if (np.isnan(dx) or np.isnan(dy)):
+            vx, vy, angle = vector(temp_pos[idx - 1])
+            if (np.isnan(vx) or np.isnan(vy)):
                 pass
             else:
-                dx2, dy2, angle2 = vector(temp_pos[idx - 2])
+                vx2, vy2, angle2 = vector(temp_pos[idx - 2])
                 if (np.abs(angle2 - angle) >= 135.):
                     return temp_pos, None
         if back:
-            dx *= -1.
-            dy *= -1.
-        x = np.int(temp_pos[idx - 1][0])
-        y = np.int(temp_pos[idx - 1][1])
-        mag = np.sqrt(dx**2 + dy**2)
-        s_top = ((y + 1) - temp_pos[idx - 1][1])*(mag/dy)
-        s_bot = (y - temp_pos[idx - 1][0])*(mag/dy)
-        s_right = ((x + 1) - temp_pos[idx - 1][0])*(mag/dx)
-        s_left = (x - temp_pos[idx - 1][1])*(mag/dx)
+            vx *= -1.
+            vy *= -1.
+        Px = np.int(temp_pos[idx - 1][0])
+        Py = np.int(temp_pos[idx - 1][1])
+        mag = np.sqrt(vx**2 + vy**2)
+        s_top = ((Py + 1) - temp_pos[idx - 1][1])*(mag/vy)
+        s_bot = (Py - temp_pos[idx - 1][0])*(mag/vy)
+        s_right = ((Px + 1) - temp_pos[idx - 1][0])*(mag/vx)
+        s_left = (Px - temp_pos[idx - 1][1])*(mag/vx)
         slist = np.array([s_top, s_bot, s_left, s_right])
         for s in slist:
             if (np.isnan(s)):
@@ -115,15 +95,15 @@ class VectorField:
             s = np.min(slist[slist >= 0.])
         # add small amount to s to ensure that P is new pixel
         s += 0.08
-        new_Px = temp_pos[idx - 1][0] + ((dx/mag)*s)
-        new_Py = temp_pos[idx - 1][1] + ((dy/mag)*s)
+        new_Px = temp_pos[idx - 1][0] + ((vx/mag)*s)
+        new_Py = temp_pos[idx - 1][1] + ((vy/mag)*s)
         if (np.abs(new_Px - temp_pos[idx - 1][0]) > 2.):
             return temp_pos, None
         if (np.abs(new_Py - temp_pos[idx - 1][1]) > 2.):
             return temp_pos, None
-        if (new_Px > self.x[0].max() or new_Px < self.x[0].min()):
+        if (new_Px > x[0].max() or new_Px < x[0].min()):
             return temp_pos, None
-        if (new_Py > self.y[:,0].max() or new_Py < self.y[:,0].min()):
+        if (new_Py > y[:,0].max() or new_Py < y[:,0].min()):
             return temp_pos, None
         temp_pos.append((new_Px, new_Py))
         return temp_pos, s
@@ -137,12 +117,13 @@ class VectorField:
         sl = Streamline(xstart, ystart)
         start = sl.start
         get_P = self.new_P
+        vector = self.get_vector
         # forward advection
         forward_pos = []
         forward_seg = []
         segs = []
         forward_pos.append((xstart,ystart))
-        for i in range(1, self.Psteps):
+        for i in range(1, Psteps):
             forward_pos, seg = get_P(i, start, forward_pos)
             if seg is not None:
                 forward_seg.append(seg)
@@ -155,7 +136,7 @@ class VectorField:
         back_pos = []
         back_seg = []
         back_pos.append((xstart,ystart))
-        for i in range(1, self.Psteps):
+        for i in range(1, Psteps):
             back_pos, seg = get_P(i, start, back_pos, back = True)
             if seg is not None:
                 back_seg.append(seg)
@@ -167,8 +148,19 @@ class VectorField:
         temp = list(reversed(forward_pos[1:]))
         temp.extend(back_pos)
         sl.segs = np.array(segs)
-        temp = self.clean_streamline(temp)
-        sl.streamline = temp
+        # clean streamline of NaNs
+        remove_idx = []
+        count = 0
+        for P in temp:
+            __, __, angle = vector(P)
+            if (np.isnan(angle)):
+                remove_idx.append(count)
+            count += 1
+        if remove_idx:
+            for idx in sorted(remove_idx, reverse=True):
+                del temp[idx]
+        #temp = self.clean_streamline(temp)
+        sl.streamline = np.array(temp)
         if (plot):
             vector = self.get_vector
             ax = plt.gca()
@@ -183,21 +175,6 @@ class VectorField:
             ax.plot(sl.streamline[:,0], sl.streamline[:,1])
         return sl
 
-    def clean_streamline(self, sl_temp):
-        """removes NaN values from streamline
-            @param sl: a list of streamline values"""
-        remove_idx = []
-        count = 0
-        for P in sl_temp:
-            dx, dy, angle = self.get_vector(P)
-            if (np.isnan(angle)):
-                remove_idx.append(count)
-            count += 1
-        if remove_idx:
-            for idx in sorted(remove_idx, reverse=True):
-                del sl_temp[idx]
-        return np.array(sl_temp)
-
     def plot_streams(self, nskip = 1, vectors = False, pot = False):
         """plots all streamlines. Launches a streamline from every
             grid point, modulo nskip.
@@ -210,9 +187,9 @@ class VectorField:
         if pot:
             self.plot_pot()
         ax = plt.gca()
-        for x in self.x[0][::nskip]:
-            for y in self.y[:,0][::nskip]:
-                s = streamline(x, y)
+        for i in x[0][::nskip]:
+            for j in y[:,0][::nskip]:
+                s = stream(i, j)
                 if not s.streamline.size:
                     continue
                 #if len(s.streamline[:,0]) < 5:
@@ -222,14 +199,20 @@ class VectorField:
         return
 
     def kern(self, k, s, L, hanning = False):
+        """the convolution kernel"""
         # boxcar filter
         if not hanning:
             return k + s
         else:
             return k + (np.cos((s * np.pi) / L) + 1.)/2.
 
-    def partial_integral(self, sl, texture, back = False):
-        kern = self.kern
+    def partial_integral(self, sl, texture, hanning = False, back = False):
+        """computes the line integral convolution in the forward
+           or backward direction along a streamline.
+           @param sl: a streamline instance
+           @param texture: the background texture
+           returns: Fsum - the LIC in one direction, for a single streamline
+                    hsum - a normalization factor"""
         pix = self.pix_idx
         if back:
             segs = sl.s_back
@@ -237,6 +220,7 @@ class VectorField:
             segs = sl.s_forward
         np.insert(segs, 0, 0.)
         L = len(segs)
+        klen = 31
         Fsum = 0.
         hsum = 0.
         s = 0.
@@ -245,8 +229,12 @@ class VectorField:
             for i in range(1, len(segs) - 2):
                 s += segs[i - 1]
                 s_plus = s + segs[i + 1]
-                k1 = kern(k1, s_plus, 256, hanning = True)
-                k0 = kern(k0, s, 256, hanning = True)
+                if not hanning:
+                    k1 += s_plus
+                    k0 += s
+                else:
+                    k1 += (np.cos((s_plus * np.pi) / klen) + 1.)/2.
+                    k0 += (np.cos((s * np.pi) / klen) + 1.)/2.
             h = k1 - k0
             hsum += h
             if back:
@@ -273,17 +261,18 @@ class VectorField:
         return temp_lic
 
     def plot_lic(self, texture, nskip = 1):
+        """plots the LIC"""
         get_idx = self.pix_idx
         sl = self.streamline
         conv = self.lic
-        self.image = np.zeros((self.pot.shape[0], self.pot.shape[1]))
+        self.image = np.zeros((pot.shape[0], pot.shape[1]))
         ax = plt.gca()
         ax.set_facecolor('black')
         lics = []
         idx = 0
-        for x in self.x[0][::nskip]:
-            for y in self.y[:,0][::nskip]:
-                s = sl(x, y)
+        for i in x[0][::nskip]:
+            for j in y[:,0][::nskip]:
+                s = sl(i, j)
                 temp_lic = conv(s, texture, nskip = nskip)
                 lics.append(temp_lic)
                 if ((idx > 0) and temp_lic == 0.):
@@ -291,25 +280,40 @@ class VectorField:
                 self.image[get_idx(s.start)] = temp_lic
                 idx += 1
         im = ax.imshow(self.image, origin="lower", cmap = "gist_heat")
-                # extent = [self.x[0].min(),\
-                # self.x[0].max(), self.y[:,0].min(),\
-                # self.y[:,0].max()])
+        plt.tight_layout()
         return
 
 xsize, ysize = 25, 25
 y, x = np.mgrid[0:2*ysize, 0:2*xsize]
-#G = 6.67e-11 # m^3 / s^2 * kg
-#m_earth = 6.0e24 # Earth mass, kg
-# Number of point masses
+Psteps = 25
+
+"""
+### point masses ###
 pot = np.zeros((2*xsize, 2*ysize))
 mass = [2**10, 2**10]
 pos = [(15.4,15.2), (36.8,39.1)]
 for i in range(len(pos)):
    r = np.sqrt((x - pos[i][0])**2 + (y - pos[i][1])**2)
-   #r[r == 0.0] = np.nan
    pot += mass[i] / r
 pot[~np.isfinite(pot)] = 0.0
-dy, dx = np.gradient(pot, np.diff(y[:3,0])[0], np.diff(x[0,:2])[0])
-scratch = VectorField(x, y, dx, dy, pot, interp = 4)
-scratch.plot_lic(scratch.white)
+interp = 4
+if (interp > 1):
+    pot = ndimage.zoom(pot, interp, order = 1)
+    y, x = np.mgrid[:pot.shape[0], :pot.shape[1]]
+    dy, dx = np.gradient(pot, np.diff(y[:2,0])[0], np.diff(x[0,:2])[0])
+"""
+### magnetic dipole ###
+Bx, By = dipole(m=[0.3, 0.1], r=np.mgrid[0:2*ysize, 0:2*xsize], r0=[25.1,25.1])
+pot = np.zeros((2*xsize, 2*ysize))
+interp = 4
+if (interp > 1):
+    rx = (interp * 100 / 4.) + 0.1
+    ry = (interp * 100 / 4.) + 0.1
+    pot = ndimage.zoom(pot, interp, order = 1)
+    y, x = np.mgrid[:pot.shape[0], :pot.shape[1]]
+    dx, dy = dipole(m=[0.3, 0.1], r=np.mgrid[0:pot.shape[0], 0:pot.shape[1]],\
+                         r0=[rx,ry])
+white = np.random.rand(pot.shape[0], pot.shape[1])
+scratch = VectorField()
+#scratch.plot_lic(white)
 
