@@ -6,23 +6,23 @@ plt.ion()
 fig, ax = plt.subplots(figsize = (8, 5))
 
 def pix_idx(P, ys, xs):
-    """Given (xcoord, ycoord), returns pixel indices"""
-    x_idx = np.where(xs[0] == np.int(P[0]))[0][0]
-    y_idx = np.where(ys[:,0] == np.int(P[1]))[0][0]
+    """Returns grid indices corresponding to point P"""
+    x_idx = (np.abs(xs[0] - P[0])).argmin()
+    y_idx = (np.abs(ys[:,0] - P[1])).argmin()
     return x_idx, y_idx
 
 def get_vector(P, vectors, ys, xs):
     """Returns the vector located at pixel coordinate P"""
     x_idx, y_idx = pix_idx(P, ys, xs)
-    vx, vy = vectors[0][x_idx, y_idx], vectors[1][x_idx, y_idx]
+    vx, vy = vectors[0][y_idx, x_idx], vectors[1][y_idx, x_idx]
     angle = np.degrees(np.arctan2(vy, vx))
     return vx, vy, angle
 
 def plot_pot():
     """plots the scalar field"""
     ax = plt.gca()
-    im = ax.imshow(pot, origin = "lower", extent = [x[0].min(), x[0].max(),\
-                y[:,0].min(), y[:,0].max()])
+    im = ax.imshow(pot, origin = "lower", extent = [xs[0].min(), xs[0].max(),\
+                ys[:,0].min(), ys[:,0].max()])
     return
 
 def plot_vectors(vectors, ys, xs, nskip = 1, pot = False):
@@ -32,13 +32,10 @@ def plot_vectors(vectors, ys, xs, nskip = 1, pot = False):
     if pot:
         plot_pot()
     mag = np.sqrt(vectors[0]**2 + vectors[1]**2)
-    ax.quiver(x[skip], y[skip], (vectors[1]/mag)[skip], (vectors[0]/mag)[skip],\
+    ax.quiver(xs[skip], ys[skip], (vectors[0]/mag)[skip], (vectors[1]/mag)[skip],\
              angles = 'xy', units = 'xy', scale_units = 'xy', headwidth = 2,\
              headaxislength = 2, headlength = 2, scale = 1)
-    ax.set(xticks = (np.arange(x[0].min(), x[0].max(), 5)),\
-          yticks = (np.arange(y[:,0].min(), y[:,0].max(), 5)),\
-          aspect=1, title='Scratch', xlabel = 'x', ylabel = 'y')
-    plt.margins(0,0)
+    #ax.set(xticks = X, yticks = Y, aspect=1, title='Scratch', xlabel = 'x', ylabel = 'y')
     return
 
 def new_P(idx, start, temp_pos, ys, xs, back = False):
@@ -54,10 +51,10 @@ def new_P(idx, start, temp_pos, ys, xs, back = False):
         vx, vy, angle = get_vector(temp_pos[idx - 1], vectors, ys, xs)
         if (np.isnan(vx) or np.isnan(vy)):
             pass
-        else:
-            vx2, vy2, angle2 = get_vector(temp_pos[idx - 2], vectors, ys, xs)
-            if (np.abs(angle2 - angle) >= 135.):
-                return temp_pos, None
+        #else:
+            #vx2, vy2, angle2 = get_vector(temp_pos[idx - 2], vectors, ys, xs)
+            #if (np.abs(angle2 - angle) >= 155.):
+            #    return temp_pos, None
     if back:
         vx *= -1.
         vy *= -1.
@@ -84,19 +81,15 @@ def new_P(idx, start, temp_pos, ys, xs, back = False):
         return temp_pos, None
     if (np.abs(new_Py - temp_pos[idx - 1][1]) > 2.):
         return temp_pos, None
-    if (new_Px > x[0].max() or new_Px < x[0].min()):
-        return temp_pos, None
-    if (new_Py > y[:,0].max() or new_Py < y[:,0].min()):
-        return temp_pos, None
+    #if (new_Px > xs[0].max() or new_Px < xs[0].min()):
+    #    return temp_pos, None
+    #if (new_Py > ys[:,0].max() or new_Py < ys[:,0].min()):
+    #    return temp_pos, None
     temp_pos.append((new_Px, new_Py))
     return temp_pos, s
 
 def sl(start, vectors, ys, xs, plot = False):
-    """a Streamline() instance
-        @param xstart,ystart; x,y starting positions
-        @param plot: If true, creates a plot of streamline
-            with arrow vectors
-        returns: a Streamline instance"""
+    """Calculates a streamline centered on start"""
     # forward advection
     forward_pos = []
     forward_seg = []
@@ -145,27 +138,27 @@ def sl(start, vectors, ys, xs, plot = False):
         ax.plot(streamline[:,0], streamline[:,1])
     return forward_seg, forward_pos, back_seg, back_pos, streamline
 
-def plot_streams(vectors, ys, xs, nskip = 1, vec = False, pot = False):
+def plot_streams(vectors, xs, ys, nskip = 1, vec = False, pot = False):
     """plots all streamlines. Launches a streamline from every
         grid point, modulo nskip.
         @param nskip: skip every nskip pixel
-        @param vectors: f vectors, show arrow vectors
-        @param pot: if pot, show potentials"""
+        @param vec: show arrow vectors
+        @param pot: show potentials"""
     if vec:
-        plot_vectors()
+        plot_vectors(vectors, ys, xs, nskip)
     if pot:
         plot_pot()
     ax = plt.gca()
-    for i in x[0][::nskip]:
-        for j in y[:,0][::nskip]:
-            forward_seg, forward_pos, back_seg, back_pos,\
-                  streamline = sl([i, j], vectors, ys, xs)
+    for i in xs[0][::nskip]:
+        for j in ys[:,0][::nskip]:
+            __, __, __, __, streamline = sl([i, j], vectors, ys, xs)
             if not streamline.size:
                 continue
             #if len(s.streamline[:,0]) < 5:
             #    continue
-            #ax.scatter(s.start[0], sl.start[1])
             ax.plot(streamline[:,0], streamline[:,1])
+    #ax.set(xticks = X, yticks = Y, aspect=1, title='Scratch', xlabel = 'x', ylabel = 'y')
+    plt.tight_layout()
     return
 
 def kern(k, s, L, hanning = False):
@@ -177,11 +170,9 @@ def kern(k, s, L, hanning = False):
         return k + (np.cos((s * np.pi) / L) + 1.)/2.
 
 def partial_integral(forward_seg, forward_pos, back_seg, back_pos,\
-                streamline, texture, y, x, hanning = False, back = False):
+                streamline, texture, ys, xs, hanning = False, back = False):
     """computes the line integral convolution in the forward
        or backward direction along a streamline.
-       @param sl: a streamline instance
-       @param texture: the background texture
        returns: Fsum - the LIC in one direction, for a single streamline
                 hsum - a normalization factor"""
     if back:
@@ -208,22 +199,20 @@ def partial_integral(forward_seg, forward_pos, back_seg, back_pos,\
         h = k1 - k0
         hsum += h
         if back:
-            tex_val = texture[pix_idx(back_pos[l], y, x)]
+            tex_val = texture[pix_idx(back_pos[l], ys, xs)]
         else:
-            tex_val = texture[pix_idx(forward_pos[l], y, x)]
+            tex_val = texture[pix_idx(forward_pos[l], ys, xs)]
         Fsum += tex_val * h
     return Fsum, hsum
 
-def lic(forward_seg, forward_pos, back_seg, back_pos, streamline, texture, y, x):
-    """performs a line integral convolution for a single streamline.
-       @param sl: a streamline instance
-       @param k: the convolution kernel"""
+def lic(forward_seg, forward_pos, back_seg, back_pos, streamline, texture, ys, xs):
+    """performs a line integral convolution for a single streamline."""
     # compute forward integral
     # compute forward integral
     F_forward, h_forward = partial_integral(forward_seg, forward_pos,\
-                back_seg, back_pos, streamline, texture, y, x)
+                back_seg, back_pos, streamline, texture, ys, xs)
     F_back, h_back = partial_integral(forward_seg, forward_pos,\
-               back_seg, back_pos, streamline, texture, y, x, back = True)
+               back_seg, back_pos, streamline, texture, ys, xs, back = True)
     if (np.sum(h_forward + h_back) == 0):
         temp_lic = 0.
     if ((F_forward + F_back) == 0):
@@ -234,10 +223,9 @@ def lic(forward_seg, forward_pos, back_seg, back_pos, streamline, texture, y, x)
 
 def plot_lic(shape, vectors, texture):
     """plots the LIC"""
-    ys, xs = np.mgrid[:2*shape[0], :2*shape[1]]
-    image = np.zeros((2*shape[0], 2*shape[1]))
+    xs, ys = np.meshgrid(X,Y)
+    image = np.zeros((shape[0], shape[1]))
     ax = plt.gca()
-    ax.set_facecolor('black')
     lics = []
     idx = 0
     for i in xs[0]:
@@ -253,12 +241,17 @@ def plot_lic(shape, vectors, texture):
             image[pix_idx(start, ys, xs)] = temp_lic
             idx += 1
     im = ax.imshow(image, origin="lower", cmap = "gist_heat")
+    plt.autoscale(False)
+    #ax.set(xticks = X, yticks = Y, aspect=1, title='Scratch', xlabel = 'x', ylabel = 'y')
     plt.tight_layout()
     return image
 
-xsize, ysize = 50, 50
-y, x = np.mgrid[0:2*ysize, 0:2*xsize]
-Psteps = 25
+xsize, ysize = 400, 400
+xmax, ymax = 100, 100
+X = np.linspace(0, xmax, xsize)
+Y = np.linspace(0, ymax, ysize)
+x, y = np.meshgrid(X,Y)
+Psteps = 20
 
 """
 ### point masses ###
@@ -276,9 +269,9 @@ if (interp > 1):
     dy, dx = np.gradient(pot, np.diff(y[:2,0])[0], np.diff(x[0,:2])[0])
 """
 ### magnetic dipole ###
-dx, dy = dipole(m=[0.3, 0.1], r=np.mgrid[0:2*ysize, 0:2*xsize], r0=[xsize + 0.1, ysize + 0.3])
-pot = np.zeros((2*xsize, 2*ysize))
+dx, dy = dipole(m=[5., 5.], r=np.meshgrid(X,Y), r0=[xmax/2. + 0.1, ymax/2. + 0.3])
 vectors = np.array([dx,dy])
-white = np.random.rand(pot.shape[0], pot.shape[1])
+white = np.random.rand(xsize, ysize)
+#plot_streams(vectors, x, y, nskip = 10, vec = True)
 image = plot_lic([xsize, ysize], vectors, white)
 
