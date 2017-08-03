@@ -210,9 +210,9 @@ def lic(forward_seg, forward_pos, back_seg, back_pos, streamline, texture, ys, x
     # compute forward integral
     # compute forward integral
     F_forward, h_forward = partial_integral(forward_seg, forward_pos,\
-                back_seg, back_pos, streamline, texture, ys, xs)
+                back_seg, back_pos, streamline, texture, ys, xs, hanning = True)
     F_back, h_back = partial_integral(forward_seg, forward_pos,\
-               back_seg, back_pos, streamline, texture, ys, xs, back = True)
+               back_seg, back_pos, streamline, texture, ys, xs, back = True, hanning = True)
     if (np.sum(h_forward + h_back) == 0):
         temp_lic = 0.
     if ((F_forward + F_back) == 0):
