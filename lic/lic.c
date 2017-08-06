@@ -3,19 +3,30 @@
 #include<math.h>
 #include<errno.h>
 
-#define XMAX 100
-#define YMAX 100
-#define LINE_LEN 1024
+#define XMAX 100 // Number of x coords in image
+#define YMAX 100 // Number of y coords in image
+#define LINE_LEN 1024 // Buffer length
+#define KLEN 31 // Kernel length
+#define PSTEPS 25 // Num streamline steps from start, for forward or back
 #define PI 3.14159265
 
 typedef struct {
     int xsize, ysize;
     double *X, *Y;
     double **dx, **dy;
+    double **texture;
 } vector_field_t;
-// sl()
-// partial_integral()
-// kernel
+
+typedef struct {
+    double start[2];
+    double **forward;
+    double **back;
+    double *forward_seg;
+    double *back_seg;
+    double *segs;
+    double **streamline;
+} streamline_t;
+
 // lic
 // image
 
@@ -63,6 +74,15 @@ void load_vectors(vector_field_t *m_field)
     return;
 }
 
+void load_texture(vector_field_t *m_field)
+{
+    FILE* tex_fd = fopen("texture.dat", "r");
+    if (!tex_fd) {
+        perror("Error: ");
+	exit(EXIT_FAILURE);
+    }
+}
+
 /** Given the input coordinates, return the grid index **/
 int pixIdx(vector_field_t *m_field, double *m_coords, int *grid_idx)
 {
@@ -103,23 +123,148 @@ int getVector(vector_field_t *m_field, double *m_coords, double *vector,
     return 0;
 }
 
-int advectP(vector_field_t *m_field, int idx, int back)
+int advectP(vector_field_t *m_field, streamline_t *sl, int m_idx, int back)
 {
+    double** line;
+    double *segs;
+    double s;
+    double vector[2];
+    double angle;
+    if (m_idx == 1) {
+        getVector(m_field, sl->start, vector, angle);
+    } else {
+        getVector(m_field, sl->start, vector, angle);
+        // if (isnan(vector[0]) || isnan(vector[1])) break;
+    }
+    double dx = vector[0];
+    double dy = vector[1];
+    if (back) {
+        line = sl->back;
+        segs = sl->back_seg;
+        dx *= -1;
+        dy *= -1;
+    } else {
+        line = sl->forward;
+        segs = sl->forward_seg;
+    }
+    segs[0] = 0.0;
+    int Px = (int)line[m_idx - 1][0];
+    int Py = (int)line[m_idx - 1][1];
+    double mag = sqrt(dx*dx + dy*dy);
+    // arc lengths
+    double s_top = ((Py + 1) - line[m_idx - 1][1])*(mag/dy);
+    double s_bot = (Py - line[m_idx - 1][0])*(mag/dy);
+    double s_right = ((Px + 1) - line[m_idx - 1][0])*(mag/dx);
+    double s_left = (Px - line[m_idx - 1][1])*(mag/dx);
+    // check for NaN in arc lengths
+    if (isnan(s_top) || isnan(s_bot) || isnan(s_right) || isnan(s_left)) {
+        return -1;
+    }
+    // if they're all negative, use min of absolute value
+    if (s_top && s_bot && s_right && s_left < 0) {
+            s = fabs(s_top);
+        if (fabs(s_bot) < s) {
+            s = fabs(s_bot);
+        } else if (fabs(s_right) < s) {
+            s = fabs(s_right);
+        } else if (fabs(s_left) < s) {
+            s = fabs(s_left);
+        }
+    // if any are positive, use positive min
+    } else {
+        s = 100;
+        if (0 < s_top < s) {
+            s = s_top;
+        } else if (0 < s_bot < s) {
+            s = s_bot;
+        } else if (0 < s_right < s) {
+            s = s_right;
+        } else if (0 < s_left < s) {
+            s = s_left;
+        }
+    }
+    s += 0.08;
+    double new_Px = line[m_idx - 1][0] + ((dx/mag)*s);
+    double new_Py = line[m_idx - 1][1] + ((dy/mag)*s);
+    if (fabs(new_Px - line[m_idx - 1][0]) > 2. ||
+              fabs(new_Py - line[m_idx - 1][1]) > 2.) {
+        return -1;
+    } else {
+        line[m_idx][0] = new_Px;
+        line[m_idx][1] = new_Py;
+        segs[m_idx] = s;
+    }
     return 0;
 }
 
-int sl(vector_field_t *m_field)
+/** Creates a streamline centered on start coordinates **/
+int streamline(vector_field_t *m_field, streamline_t *m_sl)
 {
+    m_sl->forward[0] = m_sl->start;
+    m_sl->back[0] = m_sl->start;
+    // advect forwards froms start
+    for (int i = 0; i < PSTEPS; i++) {
+        if (advectP(m_field, m_sl, i, 0) < 0) {
+            break;
+        }
+    }
+    // advect backwards from start
+    for (int j = 0; j < PSTEPS; j++) {
+        if (advectP(m_field, m_sl, j, 1) < 0) {
+            break;
+        }
+    }
     return 0;
 }
 
-int kernel(vector_field_t *m_field)
+/** Convolution kernel **/
+double kern(double k, double s, int hanning)
 {
+    // boxcar
+    if (!hanning) { return k + s; }
+    return k + ((cos(s + PI) / KLEN) + 1.)/2.;
+}
+
+int partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
+                double Fsum, double hsum, int hanning, int back)
+{
+    double *segs;
+    double tex_val;
+    if (back) {
+        segs = m_sl->back_seg;
+    } else { segs = m_sl->forward_seg; }
+    double s, k0, k1 = 0.0;
+    int L = sizeof(segs)/sizeof(double);
+    for (int l = 0; l < L; l++) {
+        for (int i = 1; i < L - 2; i++) {
+            s += segs[i - 1];
+            double s_plus = s + segs[i + 1];
+            k1 = kern(k1, s_plus, 1);
+            k0 = kern(k0, s, 1);
+        }
+        double h = k1 - k0;
+        hsum += h;
+        int m_grid_idx[2];
+        if (back) {
+            pixIdx(m_field, m_sl->back[l], m_grid_idx);
+        } else { pixIdx(m_field, m_sl->forward[l], m_grid_idx); }
+        tex_val = m_field->texture[m_grid_idx[0]][m_grid_idx[1]];
+        Fsum += tex_val * h;
+    }
     return 0;
 }
 
-int partial_integral(vector_field_t *m_field)
+int lic(vector_field_t *m_field, streamline_t *m_sl)
 {
+    double F_forward, h_forward, F_back, h_back, lic;
+    // forward integral
+    partialIntegral(m_field, m_sl, F_forward, h_forward, 1, 0);
+    // backward integral
+    partialIntegral(m_field, m_sl, F_back, h_back, 1, 1);
+    if ((F_forward + F_back == 0.) || (h_forward + h_back == 0.)) {
+        lic = 0.0;
+    }
+    lic = (F_forward + F_back) / (h_forward + h_back);
     return 0;
 }
 
