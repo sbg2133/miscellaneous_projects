@@ -232,7 +232,14 @@ def plot_lic(shape, vectors, texture):
         for j in ys[:,0]:
             start = [i,j]
             forward_seg, forward_pos, back_seg, back_pos,\
-                                      streamline = sl(start, vectors, ys, xs)
+                                      streamline = sl(start, vectors, ys, xs)     
+	    if (start == [0,0]):
+	        print forward_pos
+		print 
+		print forward_seg
+		print 
+		print dx[0][0], dy[0][0]
+		raw_input()
             temp_lic = lic(forward_seg, forward_pos, back_seg, back_pos,\
                          streamline, texture, ys, xs)
             lics.append(temp_lic)
@@ -246,7 +253,7 @@ def plot_lic(shape, vectors, texture):
     plt.tight_layout()
     return image
 
-xsize, ysize = 400, 400
+xsize, ysize = 200, 200
 xmax, ymax = 100, 100
 X = np.linspace(0, xmax, xsize)
 Y = np.linspace(0, ymax, ysize)
@@ -269,9 +276,23 @@ if (interp > 1):
     dy, dx = np.gradient(pot, np.diff(y[:2,0])[0], np.diff(x[0,:2])[0])
 """
 ### magnetic dipole ###
-dx, dy = dipole(m=[5., 5.], r=np.meshgrid(X,Y), r0=[xmax/2. + 0.1, ymax/2. + 0.3])
+dx, dy = dipole(m=[5., 5.], r=np.meshgrid(X,Y), r0=[xmax/2. + 0.1, ymax/2. + 0.3]).astype('float32')
 vectors = np.array([dx,dy])
 white = np.random.rand(xsize, ysize)
+"""
+with file('texture.dat', 'w') as outfile:
+    for row in white:
+        np.savetxt(outfile, row, newline = " ")
+	outfile.write('\n')
+with file('dx.dat', 'w') as outfile:
+    for row in dx:
+        np.savetxt(outfile, row, newline = " ")
+	outfile.write('\n')
+with file('dy.dat', 'w') as outfile:
+    for row in dy:
+        np.savetxt(outfile, row, newline = " ")
+	outfile.write('\n')
+"""
 #plot_streams(vectors, x, y, nskip = 10, vec = True)
 image = plot_lic([xsize, ysize], vectors, white)
 
