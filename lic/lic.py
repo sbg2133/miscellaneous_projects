@@ -7,7 +7,7 @@ plt.ion()
 plt.figure(figsize = (10.24, 7.68), dpi = 100)
 
 xsize, ysize = int(sys.argv[1]), int(sys.argv[2])
-xmax, ymax = 100, 100
+xmax, ymax = 200, 200
 X = np.linspace(0, xmax, xsize)
 Y = np.linspace(0, ymax, ysize)
 x, y = np.meshgrid(X,Y)

@@ -4,11 +4,11 @@
 #include<errno.h>
 #include<string.h>
 
-#define XMAX 100 // Number of x coords in image
-#define YMAX 100 // Number of y coords in image
+#define XMAX 200 // Number of x coords in image
+#define YMAX 200 // Number of y coords in image
 #define LINE_LEN 1024 // Buffer length
-#define KLEN 31 // Kernel length
-#define PSTEPS 25 // Num streamline steps from start, for forward or back
+#define KLEN 21 // Kernel length
+#define PSTEPS 10 // Num streamline steps from start, for forward or back
 #define PI 3.14159265
 
 typedef struct vector_field {
@@ -327,7 +327,7 @@ double *partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
     return sums;
 }
 
-int lic(vector_field_t *m_field)
+int lic(vector_field_t *m_field, int hann)
 {
     // printf("xsize = %d\n", m_field->xsize);
     // printf("ysize = %d\n", m_field->ysize);
@@ -351,17 +351,17 @@ int lic(vector_field_t *m_field)
             printf("\n");*/
             // forward integral
             // printf("i, j, ysize = %d, %d, %d\n", i, j, m_field->ysize);
-            forward_sums = partialIntegral(m_field, &sl, 1, 0);
+            forward_sums = partialIntegral(m_field, &sl, 0, hann);
             // backward integral
-            back_sums = partialIntegral(m_field, &sl, 1, 1);
+            back_sums = partialIntegral(m_field, &sl, 0, hann);
             // printf("F_forward, h_forward = %f, %f\n", forward_sums[0], forward_sums[1]);
             if ((forward_sums[0] + back_sums[0] == 0.) ||
                     (forward_sums[1] + back_sums[1] == 0.)) {
                 lic = 0.0;
             } else if ((idx > 0) && (lic == 0.0)) {
                 lics[idx] = lic;
-            } else { lic = (forward_sums[0] + back_sums[0]) /
-                                       (forward_sums[1] + back_sums[1]);
+            } else { lic = (forward_sums[0] + back_sums[0])
+                                   /(forward_sums[1] + back_sums[1]);
             }
             m_grid_idx = pixIdx(m_field, sl.start);
             // printf("Idx = %d, %d\n", m_grid_idx[0], m_grid_idx[1]);
@@ -419,7 +419,7 @@ int main(int argc, char *argv[])
         }
     }*/
 
-    lic(&field);
+    lic(&field, 0);
     /* for (int i = 0; i < field.ysize; i++) {
         for (int j = 0; j < field.xsize; j++) {
             printf("%f\n", field.image[i][j]);
