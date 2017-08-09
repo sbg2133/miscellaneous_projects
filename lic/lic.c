@@ -8,7 +8,7 @@
 #define YMAX 100 // Number of y coords in image
 #define LINE_LEN 1024 // Buffer length
 #define KLEN 31 // Kernel length
-#define PSTEPS 20 // Num streamline steps from start, for forward or back
+#define PSTEPS 25 // Num streamline steps from start, for forward or back
 #define PI 3.14159265
 
 typedef struct vector_field {
@@ -23,10 +23,8 @@ typedef struct streamline {
     double start[2];
     double forward[PSTEPS][2];
     double back[PSTEPS][2];
-    double *forward_seg;
-    double *back_seg;
-    double segs[PSTEPS];
-    double streamline[2*PSTEPS];
+    double forward_seg[PSTEPS];
+    double back_seg[PSTEPS];
 } streamline_t;
 
 void coordGrid(vector_field_t *m_field)
@@ -156,7 +154,7 @@ int advectP(vector_field_t *m_field, streamline_t *sl, double line[PSTEPS][2],
     // printf("Inside advectP\n");
     double s;
     double *vector;
-    segs[0] = 0.0;
+    // segs[0] = 0.0;
     if (m_idx == 1) {
         vector = getVector(m_field, sl->start);
     } else {
@@ -197,22 +195,21 @@ int advectP(vector_field_t *m_field, streamline_t *sl, double line[PSTEPS][2],
     // if any are positive, use positive min
     } else {
         s = 100;
-        if ((s_top > 0.) && (s_top < s)) { s = s_top; }
-        if ((s_bot > 0.) && (s_bot < s)) { s = s_bot; }
-        if ((s_right > 0.) && ( s_right < s)) { s = s_right; }
-        if ((s_left > 0.) && ( s_left < s)) { s = s_left; }
-        
+        if ((s_top >= 0.) && (s_top <= s)) { s = s_top; }
+        if ((s_bot >= 0.) && (s_bot <= s)) { s = s_bot; }
+        if ((s_right >= 0.) && ( s_right <= s)) { s = s_right; }
+        if ((s_left >= 0.) && ( s_left <= s)) { s = s_left; }
     }
     s += 0.08;
     double new_Px = line[m_idx - 1][0] + ((dx/mag)*s);
     double new_Py = line[m_idx - 1][1] + ((dy/mag)*s);
-    if (fabs(new_Px - line[m_idx - 1][0]) > 2. ||
-              fabs(new_Py - line[m_idx - 1][1]) > 2.) {
+    if ((fabs(new_Px - line[m_idx - 1][0]) > 2.) ||
+              (fabs(new_Py - line[m_idx - 1][1]) > 2.)) {
         return -1;
     } else {
         line[m_idx][0] = new_Px;
         line[m_idx][1] = new_Py;
-        segs[m_idx] = s;
+        segs[m_idx - 1] = s;
     }
     // printf("%f\n", segs[m_idx]);
     /*if (sl->start[0] == 0.0 && sl->start[1] == 0.0) {
@@ -239,19 +236,18 @@ int streamline(vector_field_t *m_field, streamline_t *m_sl)
     int i;
     for (i = 1; i < PSTEPS; i++) {
         if (advectP(m_field, m_sl, temp_forward, s_forward, i, 0) < 0) {
+            // printf("i = %d\n", i);
             break;
         }
     }
-    for (int k = 0; k < i; k++) {
+    for (int k = 0; k < PSTEPS; k++) {
         // printf("Tempf: %f, %f\n", temp_forward[k][0], temp_forward[k][1]);
-        memcpy(m_sl->forward[k], temp_forward[k], sizeof(m_sl->forward));
+        memcpy(m_sl->forward[k], temp_forward[k], sizeof(m_sl->forward[k]));
         // printf("forward: %f, %f\n", m_sl->forward[k][0], m_sl->forward[k][1]);
         // printf("forward seg: %f\n", s_forward[k]);
     }
-    m_sl->forward_seg = s_forward;
-    /* for (int k = 0; k < i; k++) {
-        printf("temp, sl: %f, %f\n", s_forward[k], m_sl->forward_seg[k]);
-    }*/
+    memcpy(m_sl->forward_seg, s_forward, sizeof(m_sl->forward_seg));
+    //m_sl->forward_seg = s_forward;
     // advect backwards from start
     double s_back[PSTEPS];
     double temp_back[PSTEPS][2];
@@ -260,19 +256,22 @@ int streamline(vector_field_t *m_field, streamline_t *m_sl)
     int j;
     for (j = 1; j < PSTEPS; j++) {
         if (advectP(m_field, m_sl, temp_back, s_back, j, 1) < 0) {
+            // printf("j = %d\n", j);
             break;
         }
     }
-    for (int k = 0; k < j; k++) {
+    for (int k = 0; k < PSTEPS; k++) {
         // printf("Tempb: %f, %f\n", temp_back[k][0], temp_back[k][1]);
-        memcpy(m_sl->back[k], temp_back[k], sizeof(m_sl->back));
+        memcpy(m_sl->back[k], temp_back[k], sizeof(m_sl->back[k]));
         // printf("back: %f, %f\n", m_sl->back[k][0], m_sl->back[k][1]);
-        // printf("back seg: %f\n", s_back[k]);
     }
-    m_sl->back_seg = s_back;
-    for (int k = 0; k < i; k++) {
+    memcpy(m_sl->back_seg, s_back, sizeof(m_sl->back_seg));
+    /* for (int k = 0; k < i; k++) {
+        printf("temp, sl: %f, %f\n", s_forward[k], m_sl->forward_seg[k]);
+    }*/
+    /* for (int k = 0; k < i; k++) {
         printf("temp, sl: %f, %f\n", s_back[k], m_sl->back_seg[k]);
-    }
+    }*/
     return 0;
 }
 
@@ -281,28 +280,30 @@ double kern(double k, double s, int hanning)
 {
     // boxcar
     if (!hanning) { return k + s; }
-    return k + ((cos(s + PI) / KLEN) + 1.)/2.;
+    return k + ((cos(s * PI) / KLEN) + 1.)/2.;
 }
 
-int partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
-                double Fsum, double hsum, int hanning, int back)
+double *partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
+                             int hanning, int back)
 {
+    /* for (int k = 0; k < PSTEPS; k++) {
+        printf("seg = %f\n", m_sl->forward_seg[k]);
+    }*/
+    double *sums = malloc(3*sizeof(double));
     int *m_grid_idx;
     double *segs;
     double tex_val;
     if (back) {
         segs = m_sl->back_seg;
     } else { segs = m_sl->forward_seg; }
-    /* if (m_sl->start[0] == 0.0 && m_sl->start[1] == 0.0) {
-        for (int k = 0; k < PSTEPS; k++) {
-            printf("forward_seg = %f\n", m_sl->forward_seg[k]);
-            printf("temp = %f\n", segs[k]);
-        }
+    /*for (int k = 0; k < PSTEPS; k++) {
+        printf("forward_seg = %f\n", m_sl->forward_seg[k]);
+        printf("temp = %f\n", segs[k]);
     }*/
     double s, k0, k1 = 0.0;
     double s1;
     for (int l = 0; l < PSTEPS; l++) {
-        for (int i = 1; i < PSTEPS - 2; i++) {
+        for (int i = 1; i < PSTEPS - 1; i++) {
             // printf("seg = %f\t", segs[i -1]);
             s += segs[i - 1];
             s1 = s + segs[i + 1];
@@ -310,8 +311,7 @@ int partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
             k0 = kern(k0, s, 1);
         }
         double h = k1 - k0;
-        hsum += h;
-        // int m_grid_idx[2];
+        sums[1] += h;
         if (back) {
             // printf("back coords: %f, %f\n", m_sl->back[l][0], m_sl->back[l][1]);
             m_grid_idx = pixIdx(m_field, m_sl->back[l]);
@@ -320,61 +320,78 @@ int partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
             m_grid_idx = pixIdx(m_field, m_sl->forward[l]);
         }
         // printf("grid idx = %d %d\n", m_grid_idx[0], m_grid_idx[1]);
-        // tex_val = m_field->texture[m_grid_idx[0]][m_grid_idx[1]];
-        Fsum += tex_val * h;
+        tex_val = m_field->texture[m_grid_idx[0]][m_grid_idx[1]];
+        sums[0] += (tex_val * h);
     }
-    return 0;
+    // printf("Fsum = %g\t", sums[0]);
+    return sums;
 }
 
 int lic(vector_field_t *m_field)
 {
     // printf("xsize = %d\n", m_field->xsize);
     // printf("ysize = %d\n", m_field->ysize);
+    FILE* out = fopen("lic.dat", "wt");
     double lics[m_field->xsize*m_field->ysize];
-    int *m_grid_idx;
     int idx = 0;
     // int m_grid_idx[2];
     // printf("ysize = %d\n", m_field->ysize);
     for (int i = 0; i < m_field->xsize; i++) {
         for (int j = 0; j < m_field->ysize; j++) {
+            double *forward_sums, *back_sums;
+            int *m_grid_idx;
             streamline_t sl;
-            double F_forward, h_forward, F_back, h_back, lic;
+            double lic;
             sl.start[0] = m_field->X[i];
             sl.start[1] = m_field->Y[j];
-            m_grid_idx = pixIdx(m_field, sl.start);
             streamline(m_field, &sl);
+            /* for (int k = 0; k < PSTEPS; k++) {
+                    printf("%f\t", sl.forward_seg[k]);
+            }
+            printf("\n");*/
             // forward integral
             // printf("i, j, ysize = %d, %d, %d\n", i, j, m_field->ysize);
-            partialIntegral(m_field, &sl, F_forward, h_forward, 1, 0);
+            forward_sums = partialIntegral(m_field, &sl, 1, 0);
             // backward integral
-            partialIntegral(m_field, &sl, F_back, h_back, 1, 1);
-            // printf("F_forward, h_forward = %f, %f\n", F_forward, h_forward);
-            if ((F_forward + F_back == 0.) || (h_forward + h_back == 0.)) {
+            back_sums = partialIntegral(m_field, &sl, 1, 1);
+            // printf("F_forward, h_forward = %f, %f\n", forward_sums[0], forward_sums[1]);
+            if ((forward_sums[0] + back_sums[0] == 0.) ||
+                    (forward_sums[1] + back_sums[1] == 0.)) {
                 lic = 0.0;
-            } else { lic = (F_forward + F_back) / (h_forward + h_back); }
-            lics[idx] = lic;
-            if ((idx > 0) && (lic == 0.0)) {
-	        lic = lics[idx - 1];
+            } else if ((idx > 0) && (lic == 0.0)) {
+                lics[idx] = lic;
+            } else { lic = (forward_sums[0] + back_sums[0]) /
+                                       (forward_sums[1] + back_sums[1]);
             }
+            m_grid_idx = pixIdx(m_field, sl.start);
             // printf("Idx = %d, %d\n", m_grid_idx[0], m_grid_idx[1]);
             m_field->image[m_grid_idx[0]][m_grid_idx[1]] = lic;
-	    /* printf("Start = %f, %f\n", sl.start[0], sl.start[1]);
+            /* printf("Start = %f, %f\n", sl.start[0], sl.start[1]);
             for (int k = 0; k < PSTEPS; k++) {
                 printf("Forward: %f, %f\n", sl.forward[k][0], sl.forward[k][1]);
             }*/
 	    // printf("LIC = %f\n", lic);
+            /*for (int k = 0; k < PSTEPS; k++) {
+                    printf("segs: %f\t", sl.forward_seg[k]);
+            }*/
             idx++;
-            if (sl.start[0] == 0.0 && sl.start[1] == 0.0) {
+            /* if (sl.start[0] == 0.0 && sl.start[1] == 0.0) {
 	        printf("Start = %f, %f\n", sl.start[0], sl.start[1]);
 		printf("dx, dy = %f, %f\n", m_field->dx[0][0], m_field->dy[0][0]);
 	        printf("LIC = %f\n", lic);
                 for (int k = 0; k < PSTEPS; k++) {
-                    printf("Forward: %f, %f\n", sl.forward[k][0], sl.forward[k][1]);
-                    printf("segs: %f\n", sl.forward_seg[k]);
-                  }
-            }
+                    printf("Forward: %f, %f\t", sl.forward[k][0], sl.forward[k][1]);
+                    printf("\n");
+                    printf("segs: %f\t", sl.forward_seg[k]);
+                }
+            }*/
         }
+        for (int k = 0; k < m_field->xsize; k++) {
+	    fprintf(out, "%g ", m_field->image[i][k]);
+        }
+        fprintf(out, "\n");
     }
+    fclose(out);
     return 0;
 }
 
@@ -403,10 +420,10 @@ int main(int argc, char *argv[])
     }*/
 
     lic(&field);
-    for (int i = 0; i < field.ysize; i++) {
+    /* for (int i = 0; i < field.ysize; i++) {
         for (int j = 0; j < field.xsize; j++) {
             printf("%f\n", field.image[i][j]);
         }
-    }
+    }*/
     return 0;
 }

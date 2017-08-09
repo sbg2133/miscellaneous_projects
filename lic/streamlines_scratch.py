@@ -213,7 +213,9 @@ def lic(forward_seg, forward_pos, back_seg, back_pos, streamline, texture, ys, x
                 back_seg, back_pos, streamline, texture, ys, xs, hanning = True)
     F_back, h_back = partial_integral(forward_seg, forward_pos,\
                back_seg, back_pos, streamline, texture, ys, xs, back = True, hanning = True)
-    if (np.sum(h_forward + h_back) == 0):
+    print F_forward, h_forward
+    raw_input()
+    if ((h_forward + h_back) == 0):
         temp_lic = 0.
     if ((F_forward + F_back) == 0):
         temp_lic = 0.
@@ -239,10 +241,11 @@ def plot_lic(shape, vectors, texture):
 		print forward_seg
 		print 
 		print dx[0][0], dy[0][0]
-		raw_input()
             temp_lic = lic(forward_seg, forward_pos, back_seg, back_pos,\
                          streamline, texture, ys, xs)
             lics.append(temp_lic)
+            print temp_lic
+            raw_input()
             if ((idx > 0) and temp_lic == 0.):
                 temp_lic = lics[idx - 1]
             image[pix_idx(start, ys, xs)] = temp_lic
@@ -253,8 +256,8 @@ def plot_lic(shape, vectors, texture):
     plt.tight_layout()
     return image
 
-xsize, ysize = 200, 200
-xmax, ymax = 100, 100
+xsize, ysize = 800, 800
+xmax, ymax = 200, 200
 X = np.linspace(0, xmax, xsize)
 Y = np.linspace(0, ymax, ysize)
 x, y = np.meshgrid(X,Y)
@@ -279,7 +282,6 @@ if (interp > 1):
 dx, dy = dipole(m=[5., 5.], r=np.meshgrid(X,Y), r0=[xmax/2. + 0.1, ymax/2. + 0.3]).astype('float32')
 vectors = np.array([dx,dy])
 white = np.random.rand(xsize, ysize)
-"""
 with file('texture.dat', 'w') as outfile:
     for row in white:
         np.savetxt(outfile, row, newline = " ")
@@ -292,7 +294,6 @@ with file('dy.dat', 'w') as outfile:
     for row in dy:
         np.savetxt(outfile, row, newline = " ")
 	outfile.write('\n')
-"""
 #plot_streams(vectors, x, y, nskip = 10, vec = True)
-image = plot_lic([xsize, ysize], vectors, white)
+#image = plot_lic([xsize, ysize], vectors, white)
 
