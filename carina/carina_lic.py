@@ -15,7 +15,7 @@ stokes = ['I', 'Q', 'U']
 pol_eff = [0.81, 0.79, 0.82]
 
 # define file paths
-blastpol_dir = './'
+blastpol_dir = '../'
 filenames = glob.glob(blastpol_dir+'*p10_good_C_gls_map_cal.fits')
 
 fwhm_orig = 36. # 250um fwhm, "
