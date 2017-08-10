@@ -33,5 +33,6 @@ command = ["./lic", str(xsize), str(ysize)]
 call(command)
 
 lic = np.loadtxt("./lic.dat")
-plt.imshow(lic, cmap = "gist_heat")
+plt.imshow(lic, cmap = "viridis", interpolation = "sinc")
+plt.tight_layout()
 
