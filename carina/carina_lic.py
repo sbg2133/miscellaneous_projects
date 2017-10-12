@@ -1,3 +1,4 @@
+from getIQU import IQU
 from subprocess import call
 import sys
 import numpy as np
@@ -8,14 +9,20 @@ from astropy.convolution import convolve, Gaussian2DKernel
 from astropy.io import fits
 import scipy.ndimage
 from skimage import filter
+plt.ion()
 
+# Call this function with desired band as first argument, e.g.:
+# python carina_lic.py 250
 # lists over which to iterate:
 bands = ['250', '350', '500']
 stokes = ['I', 'Q', 'U']
 pol_eff = [0.81, 0.79, 0.82]
-
+try:
+    band = sys.argv[1]
+except IndexError:
+    print "You must supply a band, 'e.g., carina_lic.py 250'"
 # define file paths
-blastpol_dir = '../'
+blastpol_dir = './carinaData/blastData/'
 filenames = glob.glob(blastpol_dir+'*p10_good_C_gls_map_cal.fits')
 
 fwhm_orig = 36. # 250um fwhm, "
@@ -26,37 +33,9 @@ sigma = fwhm_norm/2.3548
 gauss_kernel = Gaussian2DKernel(sigma)
 percent= 0.075 # empirically-tweaked
 
-for b, filename in enumerate(filenames):
-    # Read in the HDUlist from the FITS file:
-    print(filename)
-    hdulist = fits.open(filename)
-    # Print some info on what's in it:
-    hdulist.info()
-    for s, param in enumerate(stokes):
-        if (stokes[s] == 'I'):
-            Ivals_raw = hdulist[s+1].data
-            minval = np.nanmin(Ivals_raw)
-            maxval = np.nanmax(Ivals_raw)
-            # Subtracting mean flux from dark region
-            far_region = Ivals_raw[120:350, 750:800]
-            Ivals = Ivals_raw - np.mean(far_region)
-            #Ivals[Ivals < np.std(far_region)] = np.nan
-            Ivals = convolve(Ivals, gauss_kernel)
-            Ivals[Ivals == 0.0] = np.nan
-        if (stokes[s] == 'Q'):
-            Qvals_raw = hdulist[s+1].data
-            far_region = Qvals_raw[120:350, 750:800]
-            Qvals = Qvals_raw - np.mean(far_region)
-            #Qvals[Qvals < np.std(far_region)] = np.nan
-            Qvals = convolve(Qvals, gauss_kernel)
-            Qvals[Qvals == 0.0] = np.nan
-        if (stokes[s] == 'U'):
-            Uvals_raw = hdulist[s+1].data
-            far_region = Uvals_raw[120:350, 750:800]
-            Uvals = Uvals_raw - np.mean(far_region)
-            #Uvals[Uvals < np.std(far_region)] = np.nan
-            Uvals = convolve(Uvals, gauss_kernel)
-            Uvals[Uvals == 0.0] = np.nan
+# load in I, Q, U for desired band
+Ivals, Qvals, Uvals = IQU(band)
+
 I = Ivals[30:-30,260:-260]
 Q = Qvals[30:-30,260:-260]
 U = Uvals[30:-30,260:-260]
@@ -70,7 +49,7 @@ pvals = Pvals/I
 
 # Correct pvals as in Jamil's thesis, 5.7
 #pvals[pvals > 0.5] = np.nan
-pvals /= pol_eff[0]
+pvals /= pol_eff[bands.index(band)]
 phi = 0.5*np.arctan2(U,Q)
 dx = np.cos(phi)
 dy = np.sin(phi)
@@ -141,8 +120,14 @@ ax = plt.gca()
 ax.set_facecolor("k")
 plt.tight_layout()
 
+##################################################
+# For 250 um: v = 1000
+# For 350 um: v = 500
+# For 500 um: v = 200
+
+v = [1000., 500., 200.]
 plt.figure(figsize=(10.24, 7.68), dpi = 100)
-plt.imshow(mult, cmap = "inferno", vmin=0, vmax=2000)
+plt.imshow(mult, cmap = "inferno", vmin=0, vmax=v[bands.index(band)])
 ax = plt.gca()
 ax.set_facecolor("k")
 plt.tight_layout()

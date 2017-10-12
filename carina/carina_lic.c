@@ -5,8 +5,8 @@
 #include<string.h>
 
 #define LINE_LEN 1024 // Buffer length
-#define KLEN 31 // Kernel length
-#define PSTEPS 20 // Num streamline steps from start, for forward or back
+#define PSTEPS 21 // Num streamline steps from start, for forward or back
+#define HANNING 1 // Set to 1 to use hanning kernel, 0 for boxcar
 #define PI 3.14159265
 
 typedef struct vector_field {
@@ -23,6 +23,8 @@ typedef struct streamline {
     double back[PSTEPS][2];
     double forward_seg[PSTEPS];
     double back_seg[PSTEPS];
+    double forward_len;
+    double back_len;
 } streamline_t;
 
 void coordGrid(vector_field_t *m_field)
@@ -231,10 +233,12 @@ int streamline(vector_field_t *m_field, streamline_t *m_sl)
     double temp_forward[PSTEPS][2];
     temp_forward[0][0] = m_sl->start[0];
     temp_forward[0][1] = m_sl->start[1];
+    int forward_len;
     int i;
     for (i = 1; i < PSTEPS; i++) {
         if (advectP(m_field, m_sl, temp_forward, s_forward, i, 0) < 0) {
             // printf("i = %d\n", i);
+            m_sl->forward_len = i;
             break;
         }
     }
@@ -251,10 +255,12 @@ int streamline(vector_field_t *m_field, streamline_t *m_sl)
     double temp_back[PSTEPS][2];
     temp_back[0][0] = m_sl->start[0];
     temp_back[0][1] = m_sl->start[1];
+    int back_len;
     int j;
     for (j = 1; j < PSTEPS; j++) {
         if (advectP(m_field, m_sl, temp_back, s_back, j, 1) < 0) {
             // printf("j = %d\n", j);
+            m_sl->back_len = j;
             break;
         }
     }
@@ -274,15 +280,17 @@ int streamline(vector_field_t *m_field, streamline_t *m_sl)
 }
 
 /** Convolution kernel **/
-double kern(double k, double s, int hanning)
+double kern(double k, int i, int N)
 {
     // boxcar
-    if (!hanning) { return k + s; }
-    return k + ((cos(s * PI) / KLEN) + 1.)/2.;
+    if (HANNING) {
+        return 0.5*(1. - cos(i * 2*PI / (PSTEPS - 1)));
+    } else {
+        return 1.;
+    }
 }
 
-double *partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
-                             int hanning, int back)
+double *partialIntegral(vector_field_t *m_field, streamline_t *m_sl, int back)
 {
     /* for (int k = 0; k < PSTEPS; k++) {
         printf("seg = %f\n", m_sl->forward_seg[k]);
@@ -291,12 +299,18 @@ double *partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
     int *m_grid_idx;
     double *segs;
     double tex_val;
+    double h;
+    int N;
     if (back) {
         segs = m_sl->back_seg;
-    } else { segs = m_sl->forward_seg; }
-    /*for (int k = 0; k < PSTEPS; k++) {
-        printf("forward_seg = %f\n", m_sl->forward_seg[k]);
-        printf("temp = %f\n", segs[k]);
+        N = m_sl->back_len;
+    } else {
+        segs = m_sl->forward_seg;
+        N = m_sl->forward_len;
+    }
+    /* for (int k = 0; k < PSTEPS; k++) {
+        printf("k = %d, forward_seg = %f\n", k, m_sl->forward_seg[k]);
+        // printf("temp = %f\n", segs[k]);
     }*/
     double s, k0, k1 = 0.0;
     double s1;
@@ -305,10 +319,11 @@ double *partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
             // printf("seg = %f\t", segs[i -1]);
             s += segs[i - 1];
             s1 = s + segs[i + 1];
-            k1 = kern(k1, s1, 1);
-            k0 = kern(k0, s, 1);
+            // s += segs[i - 1];
+            k1 += s1*kern(k1, i + 1, N);
+            k0 += s*kern(k0, i, N);
         }
-        double h = k1 - k0;
+        h = k1 - k0;
         sums[1] += h;
         if (back) {
             // printf("back coords: %f, %f\n", m_sl->back[l][0], m_sl->back[l][1]);
@@ -325,7 +340,7 @@ double *partialIntegral(vector_field_t *m_field, streamline_t *m_sl,
     return sums;
 }
 
-int lic(vector_field_t *m_field, int hann)
+int lic(vector_field_t *m_field)
 {
     // printf("xsize = %d\n", m_field->xsize);
     // printf("ysize = %d\n", m_field->ysize);
@@ -349,9 +364,9 @@ int lic(vector_field_t *m_field, int hann)
             printf("\n");*/
             // forward integral
             // printf("i, j, ysize = %d, %d, %d\n", i, j, m_field->ysize);
-            forward_sums = partialIntegral(m_field, &sl, 0, hann);
+            forward_sums = partialIntegral(m_field, &sl, 0);
             // backward integral
-            back_sums = partialIntegral(m_field, &sl, 0, hann);
+            back_sums = partialIntegral(m_field, &sl, 1);
             // printf("F_forward, h_forward = %f, %f\n", forward_sums[0], forward_sums[1]);
             if ((forward_sums[0] + back_sums[0] == 0.) ||
                     (forward_sums[1] + back_sums[1] == 0.)) {
@@ -417,7 +432,7 @@ int main(int argc, char *argv[])
         }
     }*/
 
-    lic(&field, 0);
+    lic(&field);
     /* for (int i = 0; i < field.ysize; i++) {
         for (int j = 0; j < field.xsize; j++) {
             printf("%f\n", field.image[i][j]);
