@@ -4,12 +4,17 @@ import sys
 import numpy as np
 import glob
 import matplotlib.pyplot as plt
-import aplpy
 from astropy.convolution import convolve, Gaussian2DKernel
 from astropy.io import fits
 import scipy.ndimage
-from skimage import filter
+from skimage import filters
 plt.ion()
+
+if len(sys.argv) < 2:
+    print "You must supply a band, 'e.g., carina_lic.py 250'"
+    sys.exit()
+else:
+    band = sys.argv[1]
 
 # Call this function with desired band as first argument, e.g.:
 # python carina_lic.py 250
@@ -17,33 +22,17 @@ plt.ion()
 bands = ['250', '350', '500']
 stokes = ['I', 'Q', 'U']
 pol_eff = [0.81, 0.79, 0.82]
-try:
-    band = sys.argv[1]
-except IndexError:
-    print "You must supply a band, 'e.g., carina_lic.py 250'"
-# define file paths
-blastpol_dir = './carinaData/blastData/'
-filenames = glob.glob(blastpol_dir+'*p10_good_C_gls_map_cal.fits')
 
-fwhm_orig = 36. # 250um fwhm, "
-omega_orig = 1.13*fwhm_orig**2
-smooth_fwhm = 4.5 * 60. # 4.5' in "
-fwhm_norm = smooth_fwhm / fwhm_orig
-sigma = fwhm_norm/2.3548
-gauss_kernel = Gaussian2DKernel(sigma)
-percent= 0.075 # empirically-tweaked
+# define file paths
+blastpol_dir = './carinaData/smooth/3.0_arcmin'
+filename = glob.glob(blastpol_dir + '/carinaneb_' + band + '_smoothed_3.0_rl.fits')[0]
 
 # load in I, Q, U for desired band
-Ivals, Qvals, Uvals = IQU(band)
+Ivals, Qvals, Uvals, wcs = IQU(band, filename)
 
 I = Ivals[30:-30,260:-260]
 Q = Qvals[30:-30,260:-260]
 U = Uvals[30:-30,260:-260]
-"""
-I = scipy.ndimage.zoom(I, 2, order=0)
-Q = scipy.ndimage.zoom(Q, 2, order=0)
-U = scipy.ndimage.zoom(U, 2, order=0)
-"""
 Pvals = np.sqrt(Q**2 + U**2)
 pvals = Pvals/I
 
@@ -76,25 +65,33 @@ plt.tight_layout()
 xsize, ysize = len(X), len(Y)
 
 vectors = np.array([dx,dy])
-white = np.random.rand(xsize, ysize)
+#white = np.random.rand(xsize, ysize)
+#white = np.random.uniform(low = 0., high = 1., size = (xsize, ysize))
+white = np.random.normal(0., 1., size = (xsize,ysize))
+#white = scipy.ndimage.gaussian_filter(white, sigma)
+
 with file('texture.dat', 'w') as outfile:
     for row in white:
         np.savetxt(outfile, row, newline = " ")
-	outfile.write('\n')
+        outfile.write('\n')
 with file('dx.dat', 'w') as outfile:
     for row in dx:
         np.savetxt(outfile, row, newline = " ")
-	outfile.write('\n')
+        outfile.write('\n')
 with file('dy.dat', 'w') as outfile:
     for row in dy:
         np.savetxt(outfile, row, newline = " ")
-	outfile.write('\n')
+        outfile.write('\n')
 
 command = ["./carina_lic", str(xsize), str(ysize)]
 call(command)
 
 lic = np.loadtxt("./lic.dat")
+#np.save('lic.npy', lic)
 lic = np.transpose(lic)
+#lic = np.load("lic.npy")
+lic += np.abs(np.nanmin(lic))
+lic[lic > 3*np.nanstd(lic)] *= 100*lic[lic > 3*np.nanstd(lic)]
 mult =  lic * I
 
 """
@@ -107,16 +104,24 @@ lowpass = scipy.ndimage.gaussian_filter(lic, 5)
 highpass = lic - lowpass
 highpass += lic
 """
-plt.figure(figsize=(10.24, 7.68), dpi = 100)
-ax = plt.gca()
+fig1 = plt.figure(figsize=(10.24, 7.68), dpi = 100)
+ax = fig1.add_subplot(1, 1, 1, projection=wcs)
 ax.set_facecolor("k")
 ax.imshow(lic, cmap = "inferno", interpolation = "hanning")
+ax.tick_params(axis='x', labelsize=18)
+ax.tick_params(axis='y', labelsize=18)
+ax.set_xlabel('RA', fontsize = 16, fontweight = 'bold')
+ax.set_ylabel('DEC', fontsize = 16, fontweight = 'bold')
 plt.tight_layout()
 
-plt.figure(figsize=(10.24, 7.68), dpi = 100)
+fig2 = plt.figure(figsize=(10.24, 7.68), dpi = 100)
+ax = fig2.add_subplot(1, 1, 1, projection=wcs)
 plt.imshow(I, cmap = "inferno", alpha = 1)
-plt.imshow(lic, cmap = "gray", vmin = 0.35, alpha = 0.30, interpolation = "hanning")
-ax = plt.gca()
+plt.imshow(lic, cmap = "gray", alpha = 0.30, interpolation = "hanning")
+ax.tick_params(axis='x', labelsize=18)
+ax.tick_params(axis='y', labelsize=18)
+ax.set_xlabel('RA', fontsize = 16, fontweight = 'bold')
+ax.set_ylabel('DEC', fontsize = 16, fontweight = 'bold')
 ax.set_facecolor("k")
 plt.tight_layout()
 
@@ -125,11 +130,13 @@ plt.tight_layout()
 # For 350 um: v = 500
 # For 500 um: v = 200
 
-v = [1000., 500., 200.]
-plt.figure(figsize=(10.24, 7.68), dpi = 100)
-plt.imshow(mult, cmap = "inferno", vmin=0, vmax=v[bands.index(band)])
-ax = plt.gca()
+v = [0.25, 0.4, 0.5]
+fig3 = plt.figure(figsize=(10.24, 7.68), dpi = 100)
+ax = fig3.add_subplot(1, 1, 1, projection=wcs)
+plt.imshow(mult, cmap = "inferno", vmin = 0, vmax = v[bands.index(band)])
+ax.tick_params(axis='x', labelsize=18)
+ax.tick_params(axis='y', labelsize=18)
+ax.set_xlabel('RA', fontsize = 16, fontweight = 'bold')
+ax.set_ylabel('DEC', fontsize = 16, fontweight = 'bold')
 ax.set_facecolor("k")
 plt.tight_layout()
-
-

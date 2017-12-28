@@ -4,10 +4,9 @@
 #include<errno.h>
 #include<string.h>
 
-#define LINE_LEN 1024 // Buffer length
-#define PSTEPS 21 // Num streamline steps from start, for forward or back
+#define PSTEPS 51 // Num streamline steps from start, for forward or back
 #define HANNING 1 // Set to 1 to use hanning kernel, 0 for boxcar
-#define PI 3.14159265
+#define PI 3.14159265358979323846
 
 typedef struct vector_field {
     int xsize, ysize;
@@ -50,20 +49,20 @@ void loadVectors(vector_field_t *m_field)
     FILE* dx_fd = fopen("dx.dat", "r");
     if (!dx_fd) {
         perror("Error: ");
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     FILE* dy_fd = fopen("dy.dat", "r");
     if (!dy_fd) {
         perror("Error: ");
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
-    m_field->dx = (double**)malloc(m_field->ysize * sizeof(double*));
+    m_field->dx = (double**)malloc(m_field->xsize * sizeof(double*));
     m_field->dy = (double**)malloc(m_field->ysize * sizeof(double*));
     // double *vx[ysize], *vy[xsize];
     int i, j;
     for (i = 0; i < m_field->ysize; i++) {
          m_field->dx[i] = (double *)malloc(m_field->xsize * sizeof(double));
-         m_field->dy[i] = (double *)malloc(m_field->xsize * sizeof(double));
+         m_field->dy[i] = (double *)malloc(m_field->ysize * sizeof(double));
     }
     for (i = 0; i < m_field->ysize; i++) {
         for (j = 0; j < m_field->xsize; j++) {
@@ -85,12 +84,12 @@ void loadTexture(vector_field_t *m_field)
     FILE* tex_fd = fopen("texture.dat", "r");
     if (!tex_fd) {
         perror("Error: ");
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     for (int i = 0; i < m_field->ysize; i++) {
         for (int j = 0; j < m_field->xsize; j++) {
             fscanf(tex_fd, "%lf", &m_field->texture[i][j]);
-	    // printf("%lf\n", m_field->texture[0][0]);
+            // printf("%lf\n", m_field->texture[0][0]);
         }
     }
     fclose(tex_fd);
@@ -112,10 +111,10 @@ int *pixIdx(vector_field_t *m_field, double *m_coords)
     // for (int j = 0; j < m_field->ysize; j++) { printf("Yi = %f\n", m_field->Y[j]); }
     // printf("Coords = %f, %f\n", m_coords[0], m_coords[1]);
     for (int i = 0; i < m_field->xsize; i++) {
-	diffx = fabs(m_field->X[i] - m_coords[0]);
+        diffx = fabs(m_field->X[i] - m_coords[0]);
         // printf("Diffx = %f\n", diffx);
-	if (diffx < tempx) {
-	    tempx = diffx;
+        if (diffx < tempx) {
+            tempx = diffx;
         } else {
             grid_idx[0] = i;
             break;
@@ -125,7 +124,7 @@ int *pixIdx(vector_field_t *m_field, double *m_coords)
         diffy = fabs(m_field->Y[j] - m_coords[1]);
         // printf("Diffy = %f\n", diffy);
         if (diffy < tempy) {
-	    tempy = diffy;
+            tempy = diffy;
         } else {
             grid_idx[1] = j;
             break;
@@ -280,7 +279,7 @@ int streamline(vector_field_t *m_field, streamline_t *m_sl)
 }
 
 /** Convolution kernel **/
-double kern(double k, int i, int N)
+double kern(int i)
 {
     // boxcar
     if (HANNING) {
@@ -315,15 +314,16 @@ double *partialIntegral(vector_field_t *m_field, streamline_t *m_sl, int back)
     double s, k0, k1 = 0.0;
     double s1;
     for (int l = 0; l < PSTEPS; l++) {
-        for (int i = 1; i < PSTEPS - 1; i++) {
+        /* for (int i = 1; i < PSTEPS - 1; i++) {
             // printf("seg = %f\t", segs[i -1]);
             s += segs[i - 1];
             s1 = s + segs[i + 1];
             // s += segs[i - 1];
-            k1 += s1*kern(k1, i + 1, N);
-            k0 += s*kern(k0, i, N);
-        }
-        h = k1 - k0;
+            // k1 += s1*kern(k1, i + 1, N);
+            // k0 += s*kern(k0, i, N);
+            k1 = kern(i + 
+        } */
+        h = kern(l);
         sums[1] += h;
         if (back) {
             // printf("back coords: %f, %f\n", m_sl->back[l][0], m_sl->back[l][1]);
@@ -383,15 +383,15 @@ int lic(vector_field_t *m_field)
             for (int k = 0; k < PSTEPS; k++) {
                 printf("Forward: %f, %f\n", sl.forward[k][0], sl.forward[k][1]);
             }*/
-	    // printf("LIC = %f\n", lic);
+            // printf("LIC = %f\n", lic);
             /*for (int k = 0; k < PSTEPS; k++) {
                     printf("segs: %f\t", sl.forward_seg[k]);
             }*/
             idx++;
             /* if (sl.start[0] == 0.0 && sl.start[1] == 0.0) {
-	        printf("Start = %f, %f\n", sl.start[0], sl.start[1]);
-		printf("dx, dy = %f, %f\n", m_field->dx[0][0], m_field->dy[0][0]);
-	        printf("LIC = %f\n", lic);
+                printf("Start = %f, %f\n", sl.start[0], sl.start[1]);
+                printf("dx, dy = %f, %f\n", m_field->dx[0][0], m_field->dy[0][0]);
+                printf("LIC = %f\n", lic);
                 for (int k = 0; k < PSTEPS; k++) {
                     printf("Forward: %f, %f\t", sl.forward[k][0], sl.forward[k][1]);
                     printf("\n");
@@ -400,7 +400,7 @@ int lic(vector_field_t *m_field)
             }*/
         }
         for (int k = 0; k < m_field->xsize; k++) {
-	    fprintf(out, "%g ", m_field->image[i][k]);
+            fprintf(out, "%g ", m_field->image[i][k]);
         }
         fprintf(out, "\n");
     }
@@ -412,7 +412,7 @@ int main(int argc, char *argv[])
 {
     if(argc != 3) {
         printf("Wrong number of arguments.\n");
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     vector_field_t field;
     field.xsize = atoi(argv[1]);

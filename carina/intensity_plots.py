@@ -10,10 +10,11 @@ plt.ion()
 bands = ['250', '350', '500']
 stokes = ['I', 'Q', 'U']
 pol_eff = [0.81, 0.79, 0.82]
+all_bands = ['250', '350', '500']
 
-I250, Q250, U250 = IQU('250', smooth = True)
-I350, Q350, U350 = IQU('350', smooth = True)
-I500, Q500, U500 = IQU('500', smooth = True)
+I250, Q250, U250, wcs = IQU('250', smooth = True)
+I350, Q350, U350, wcs = IQU('350', smooth = True)
+I500, Q500, U500, wcs = IQU('500', smooth = True)
 
 Is = [I250, I350, I500]
 Qs = [Q250, Q350, Q500]
@@ -30,11 +31,13 @@ I350[I350 < 5*np.std(I350)] = 0.
 I500[I500 < 5*np.std(I500)] = 0.
 """
 def plotIntensity(bands_list, streamlines = False, nskip = 10):
-    f, ax = plt.subplots(len(bands_list), 1, sharex = True, dpi = 100., squeeze=False)
+    f, ax = plt.subplots(len(bands_list), 1, sharex = True, dpi = 100., squeeze=False, subplot_kw = {'projection': wcs})
+    f.text(0.5, 0.04, 'RA', ha='center', fontsize = 12)
+    f.text(0.04, 0.5, 'DEC', va='center', rotation='vertical', fontsize = 12)
+    #f.tight_layout()
     [ax[bands.index(band), 0].imshow(Is[bands.index(band)], cmap = "inferno") for band in bands_list]
-    for i in range(len(ax)):
-        ax[i, 0].set_facecolor("k")
-    f.set_facecolor("k")
+    #for i in range(len(ax)):
+        #ax[i, 0].set_facecolor("k")
     if streamlines:
         [putStreamlines(ax[bands.index(band), 0], bands.index(band), nskip) for band in bands_list]
     plt.tight_layout()
@@ -54,7 +57,7 @@ def putStreamlines(ax, band_idx, nskip):
     # Correct pvals as in Jamil's thesis, 5.7
     #pvals[pvals > 0.5] = np.nan
     pvals /= pol_eff[band_idx]
-    phi = 0.5*np.arctan2(U,Q) + (np.pi/4.)
+    phi = 0.5*np.arctan2(U,Q) 
     dx = np.cos(phi)
     dy = np.sin(phi)
     mag = np.sqrt(dx**2 + dy**2)
