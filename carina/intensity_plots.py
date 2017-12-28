@@ -12,9 +12,9 @@ stokes = ['I', 'Q', 'U']
 pol_eff = [0.81, 0.79, 0.82]
 all_bands = ['250', '350', '500']
 
-I250, Q250, U250, wcs = IQU('250', smooth = True)
-I350, Q350, U350, wcs = IQU('350', smooth = True)
-I500, Q500, U500, wcs = IQU('500', smooth = True)
+I250, Q250, U250, wcs = IQU('250', './carinaData/carinaneb/carinaneb_good_250_p10_good_C_gls_map_cal.fits')
+I350, Q350, U350, wcs = IQU('350', './carinaData/carinaneb/carinaneb_good_350_p10_good_C_gls_map_cal.fits')
+I500, Q500, U500, wcs = IQU('500', './carinaData/carinaneb/carinaneb_good_500_p10_good_C_gls_map_cal.fits')
 
 Is = [I250, I350, I500]
 Qs = [Q250, Q350, Q500]
@@ -66,7 +66,6 @@ def putStreamlines(ax, band_idx, nskip):
     xs, ys = np.meshgrid(X,Y)
     xsize, ysize = len(X), len(Y)
     vectors = np.array([dx,dy])
-    white = np.random.rand(xsize, ysize)
     plot_streams(ax, vectors, xs, ys, nskip)
     return
 
