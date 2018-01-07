@@ -90,8 +90,8 @@ lic = np.loadtxt("./lic.dat")
 #np.save('lic.npy', lic)
 lic = np.transpose(lic)
 #lic = np.load("lic.npy")
-lic += np.abs(np.nanmin(lic))
-lic[lic > 3*np.nanstd(lic)] *= 100*lic[lic > 3*np.nanstd(lic)]
+#lic += np.abs(np.nanmin(lic))
+#lic[lic > 3*np.nanstd(lic)] *= 100*lic[lic > 3*np.nanstd(lic)]
 mult =  lic * I
 
 """
@@ -117,7 +117,7 @@ plt.tight_layout()
 fig2 = plt.figure(figsize=(10.24, 7.68), dpi = 100)
 ax = fig2.add_subplot(1, 1, 1, projection=wcs)
 plt.imshow(I, cmap = "inferno", alpha = 1)
-plt.imshow(lic, cmap = "gray", alpha = 0.30, interpolation = "hanning")
+plt.imshow(lic, cmap = "gray", alpha = 0.30, interpolation = "nearest")
 ax.tick_params(axis='x', labelsize=18)
 ax.tick_params(axis='y', labelsize=18)
 ax.set_xlabel('RA', fontsize = 16, fontweight = 'bold')

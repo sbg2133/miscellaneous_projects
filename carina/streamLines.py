@@ -141,7 +141,7 @@ def sl(start, vectors, ys, xs, plot = False):
         ax.plot(streamline[:,0], streamline[:,1])
     return forward_seg, forward_pos, back_seg, back_pos, streamline
 
-def plot_streams(ax, vectors, xs, ys, nskip = 1, vec = False, pot = False):
+def plot_streams(ax, vectors, xs, ys, nskip = 1, col = 'white', alph= 0.3, vec = False, pot = False):
     """plots all streamlines. Launches a streamline from every
         grid point, modulo nskip.
         @param nskip: skip every nskip pixel
@@ -158,10 +158,8 @@ def plot_streams(ax, vectors, xs, ys, nskip = 1, vec = False, pot = False):
                 continue
             #if len(s.streamline[:,0]) < 5:
             #    continue
-            ax.plot(streamline[:,0], streamline[:,1], color = 'white', alpha = 0.3)
+            ax.plot(streamline[:,0], streamline[:,1], color = col, alpha = alph)
     ax.set_facecolor("k")
-    #ax.set(xticks = X, yticks = Y, aspect=1, title='Scratch', xlabel = 'x', ylabel = 'y')
-    plt.tight_layout()
     return
 
 def kern(k, s, L, hanning = False):
