@@ -28,16 +28,15 @@ def plot_pot():
                 ys[:,0].min(), ys[:,0].max()])
     return
 
-def plot_vectors(vectors, ys, xs, nskip = 1, pot = False):
+def plot_vectors(ax, vectors, ys, xs, nskip = 1, alph = 1, col = 'white', pot = False):
     """Creates an arrow plot of the vector field"""
     skip = (slice(None, None, nskip), slice(None, None, nskip))
-    ax = plt.gca()
     if pot:
         plot_pot()
     mag = np.sqrt(vectors[0]**2 + vectors[1]**2)
     ax.quiver(xs[skip], ys[skip], (vectors[0]/mag)[skip], (vectors[1]/mag)[skip],\
-             angles = 'xy', units = 'xy', scale_units = 'xy', headwidth = 2,\
-             headaxislength = 2, headlength = 2, scale = 1)
+             angles = 'xy', units = 'xy', scale_units = 'xy', headwidth = 1,\
+             headaxislength = 2, headlength = 2, color = col, alpha = alph)
     #ax.set(xticks = X, yticks = Y, aspect=1, title='Scratch', xlabel = 'x', ylabel = 'y')
     return
 
@@ -141,14 +140,14 @@ def sl(start, vectors, ys, xs, plot = False):
         ax.plot(streamline[:,0], streamline[:,1])
     return forward_seg, forward_pos, back_seg, back_pos, streamline
 
-def plot_streams(ax, vectors, xs, ys, nskip = 1, col = 'white', alph= 0.3, vec = False, pot = False):
+def plot_streams(ax, vectors, xs, ys, nskip = 10, col = 'white', alph= 1, vec = False, pot = False):
     """plots all streamlines. Launches a streamline from every
         grid point, modulo nskip.
         @param nskip: skip every nskip pixel
         @param vec: show arrow vectors
         @param pot: show potentials"""
     if vec:
-        plot_vectors(vectors, ys, xs, nskip)
+        plot_vectors(ax, vectors, ys, xs, nskip, alph, col = 'white')
     if pot:
         plot_pot()
     for i in xs[0][::nskip]:
@@ -159,7 +158,7 @@ def plot_streams(ax, vectors, xs, ys, nskip = 1, col = 'white', alph= 0.3, vec =
             #if len(s.streamline[:,0]) < 5:
             #    continue
             ax.plot(streamline[:,0], streamline[:,1], color = col, alpha = alph)
-    ax.set_facecolor("k")
+    #ax.set_facecolor("k")
     return
 
 def kern(k, s, L, hanning = False):

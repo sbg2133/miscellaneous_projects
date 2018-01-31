@@ -43,7 +43,7 @@ pvals = Pvals/I
 # Correct pvals as in Jamil's thesis, 5.7
 #pvals[pvals > 0.5] = np.nan
 pvals /= pol_eff[bands.index(band)]
-phi = 0.5*np.arctan2(U,Q) + np.pi/4.
+phi = 0.5*np.arctan2(U,Q)
 dx = np.cos(phi)
 dy = np.sin(phi)
 mag = np.sqrt(dx**2 + dy**2)
@@ -87,8 +87,8 @@ with file('dy.dat', 'w') as outfile:
         np.savetxt(outfile, row, newline = " ")
         outfile.write('\n')
 
-# command = ["./carina_lic", str(xsize), str(ysize)]
-# call(command)
+#command = ["./carina_lic", str(xsize), str(ysize)]
+#call(command)
 
 lic = np.loadtxt("./lic.dat")
 #np.save('lic.npy', lic)
@@ -104,18 +104,16 @@ mult = lic * I
 hdu1 = fits.PrimaryHDU(data=lic, header=wcs.to_header())
 f1 = aplpy.FITSFigure(hdu1)
 f1.set_theme('publication')
-f1.show_colorscale(stretch='linear', cmap='inferno', smooth = None, kernel='gauss',
-                                             aspect='equal', interpolation='hamming')
+f1.show_colorscale(stretch='linear', cmap='inferno', smooth = None, kernel='gauss', aspect='equal', interpolation='hamming')
 ax = plt.gca()
 ax.set_facecolor("k")
 f1.axis_labels.set_font(size=16)
 f1.tick_labels.set_font(size=14)
 #  scalebar
 f1.add_scalebar(30/60.) # arcmin
-f1.scalebar.set_label('0.5 deg')
+f.scalebar.set_label('20 pc')
 f1.scalebar.set_color('white')
 f1.scalebar.set_corner('bottom right')
-f1.scalebar.set_label('0.5 deg')
 f1.scalebar.set_linewidth(2)
 f1.scalebar.set_font_size(size = 'large')
 f1.add_grid()
@@ -126,9 +124,10 @@ plt.tight_layout()
 hdu2 = fits.PrimaryHDU(data=I, header=wcs.to_header())
 f2 = aplpy.FITSFigure(hdu2)
 f2.set_theme('publication')
-#ax = plt.gca()
+ax = plt.gca()
 ax.set_facecolor("k")
 f2.show_colorscale(cmap = 'inferno')
+f2.show_colorscale(stretch='linear', cmap='inferno', aspect='equal', interpolation='hamming', vmin=0., vmax=0.0018)
 f2.axis_labels.set_font(size=16)
 f2.tick_labels.set_font(size = 14)
 #  scalebar
@@ -139,11 +138,11 @@ f2.scalebar.set_corner('bottom right')
 f2.scalebar.set_label('0.5 deg')
 f2.scalebar.set_linewidth(2)
 f2.scalebar.set_font_size(size = 'large')
-f2.add_grid()
-f2.grid.set_color('yellow')
-f2.grid.set_alpha(0.2)
-norm = ImageNormalize(lic, interval=MinMaxInterval(), stretch=PowerStretch(1.2))
-plt.imshow(lic, alpha = 0.3, origin = 'lower', norm = norm, interpolation = 'hamming', cmap = 'gray')
+#f2.add_grid()
+#f2.grid.set_color('yellow')
+#f2.grid.set_alpha(0.2)
+norm = ImageNormalize(lic, interval=MinMaxInterval(), stretch=PowerStretch(1.05))
+plt.imshow(lic, alpha = 0.4, origin = 'lower', norm = norm, interpolation = 'hamming', cmap = 'gray')
 plt.savefig('./lic_overplot.png', dpi = 100, bbox_inches = 'tight')
 plt.tight_layout()
 
@@ -153,10 +152,8 @@ f3 = aplpy.FITSFigure(hdu3)
 f3.set_theme('publication')
 ax = plt.gca()
 ax.set_facecolor("k")
-f3.show_colorscale(vmin=0., vmax=0.005, stretch='arcsinh', cmap='inferno',\
-             smooth = None, kernel='gauss', aspect='equal', interpolation='hamming')
-#f3.show_colorscale(vmin=0., vmax=0.00015, stretch='arcsinh', cmap='inferno',\
-#             smooth = None, kernel='gauss', aspect='equal', interpolation='hamming')
+#f3.show_colorscale(vmin=0., vmax=0.005, stretch='arcsinh', cmap='inferno',smooth = None, kernel='gauss', aspect='equal', interpolation='hamming')
+f3.show_colorscale(vmin=0., vmax=0.00015, stretch='arcsinh', cmap='inferno',smooth = None, kernel='gauss', aspect='equal', interpolation='hamming')
 f3.axis_labels.set_font(size=16)
 f3.tick_labels.set_font(size = 14)
 #  scalebar
@@ -167,9 +164,10 @@ f3.scalebar.set_corner('bottom right')
 f3.scalebar.set_label('0.5 deg')
 f3.scalebar.set_linewidth(2)
 f3.scalebar.set_font_size(size = 'large')
-f3.add_grid()
-f3.grid.set_color('yellow')
-f3.grid.set_alpha(0.2)
+#f3.add_grid()
+#f3.grid.set_color('yellow')
+#f3.grid.set_alpha(0.2)
+fits.writeto('./mult2.fits', mult, header=wcs.to_header())
 plt.savefig('./mult.png', dpi = 100, bbox_inches = 'tight')
 plt.tight_layout()
 

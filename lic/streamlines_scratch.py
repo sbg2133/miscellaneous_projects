@@ -295,5 +295,5 @@ with file('dy.dat', 'w') as outfile:
         np.savetxt(outfile, row, newline = " ")
 	outfile.write('\n')
 #plot_streams(vectors, x, y, nskip = 10, vec = True)
-#image = plot_lic([xsize, ysize], vectors, white)
+image = plot_lic([xsize, ysize], vectors, white)
 
