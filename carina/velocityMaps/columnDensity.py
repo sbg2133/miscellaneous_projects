@@ -67,4 +67,4 @@ def nH2(band, I, L):
     print "< nH2> =", np.nanmean(n)
     print "min nH2 =", np.nanmin(n)
     print "max nH2 =", np.nanmax(n)
-    return n
+    return n, N

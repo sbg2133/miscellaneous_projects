@@ -55,8 +55,8 @@ nskip_v = np.int(np.round(1.0/cdelta_v)) # points per arcmin
 r_v = nskip_v*(res/2.)
 
 pol_disp = np.load('pol_disp_skip3.npy')
-v_array = np.load('v_array_skip3.npy')
-v_fwhm = np.load('v_fwhm_nskip3.npy')
+v_array = np.load('./large_files/v_array_skip3.npy')
+v_fwhm = np.load('./large_files/v_fwhm_nskip3.npy')
 nskip_blast = 3
 
 #pol_disp = np.load('pol_disp_default.npy')
@@ -84,7 +84,7 @@ pvals[pvals > 0.8] = np.nan
 pvals[pvals < 0] = np.nan
 dx = np.cos(psi)
 dy = np.sin(psi)
-n = nH2(band, I, L)
+n, N = nH2(band, I, L)
 
 # points to use for S calculation
 xs = np.arange(psi.shape[1])[::nskip_blast]
@@ -184,16 +184,6 @@ for coord in vcoords:
 """
 print "Calculating v FWHM"
 #v_fwhm = vfwhm(v_array)
-# HISTOGRAM OF VLOS
-"""
-plt.figure()
-plt.hist(v_fwhm, bins = 500, color = 'C0')
-plt.xlabel(r"FWHM V$_{LOS}$ [km/s]")
-plt.ylabel('N')
-plt.xlim(14, 39)
-pretty()
-plt.savefig(os.path.join(save_files_here, 'VLOS_hist.eps'), format='eps', bbox_inches = 'tight')
-"""
 
 def Bmap_Vmap(pol_coords, pol_disp, vcoords, v_fwhm):
     vdisp_map = np.empty_like(dummy_v)
@@ -243,7 +233,7 @@ def Bmap_Vmap(pol_coords, pol_disp, vcoords, v_fwhm):
 B, B_interp, V, V_interp = Bmap_Vmap(pol_coords, pol_disp, vcoords, v_fwhm)
 
 mask_coords = np.column_stack((v_x.ravel(), v_y.ravel()))
-for coord in mask_coords[::30]:
+for coord in mask_coords[::120]:
 #    if coord[0] > 120 or coord[1] < 0:
 #        continue
     center = dummy_v[coord[1], coord[0]]
@@ -260,9 +250,34 @@ ax = plt.gca()
 ax.set_xlabel('Radial Velocity [km/s]')
 ax.set_ylabel('Counts')
 pretty()
-#plt.savefig(os.path.join(save_files_here, 'HI_avg_vdisp.png'), format='png', bbox_inches = 'tight')
+plt.savefig(os.path.join(save_files_here, 'HI_avg_vdisp.eps'), format='eps', bbox_inches = 'tight')
 """
-"""
+###########################################################
+# HISTOGRAM of V FWHM
+###########################################################
+plt.figure(figsize = (12,12))
+plt.hist(v_fwhm, bins = 500, histtype='bar', ec='black', color = 'C0')
+plt.xlabel(r"FWHM V$_{LOS}$ [km/s]")
+plt.ylabel('N')
+plt.xlim(14, 39)
+pretty()
+plt.savefig(os.path.join(save_files_here, 'VLOS_hist.eps'), format='eps', bbox_inches = 'tight')
+
+##########################################################
+# HISTOGRAM OF NH2 Column density
+###########################################################
+plt.figure(figsize = (12,12))
+plt.hist(np.log10(N), bins = 500, histtype='bar', ec='black', color = 'C0')
+plt.xlabel(r"log$_{10}$ N(H$_{2})$ cm$^{-2}$")
+plt.ylabel('N')
+plt.xlim(19.8, 22.8)
+pretty()
+plt.savefig(os.path.join(save_files_here, 'NH2_hist_' + str(band) + '.eps'),\
+          format='eps', bbox_inches = 'tight')
+
+#########################################################
+# V select regions
+#########################################################
 plt.figure(figsize = (12,12))
 plt.pcolormesh(radec_v.ra, radec_v.dec, dummy_v, cmap = "viridis", alpha = 0.7)
 plt.contourf(radec.ra, radec.dec, I, levels = np.linspace(np.nanmin(I),\
@@ -271,12 +286,16 @@ ax = plt.gca()
 ax.set_ylim(-58.5, -60.5)
 ax.set_xlim(158, 164)
 ax.set_ylabel('RA (J2000)')
-ax.set_xlabel('DEC (J2000)')
+ax.set_xlabel('Dec (J2000)')
 ax.set_xlim(ax.get_xlim()[::-1])
 pretty()
-#plt.savefig(os.path.join(save_files_here, 'HI_vselect_5arcmin.png'),\
-          # format='png', bbox_inches = 'tight')
+plt.savefig(os.path.join(save_files_here, 'HI_vselect.png'),\
+          format='png', bbox_inches = 'tight')
 
+
+###########################################################
+# B interp with pol streamlines
+###########################################################
 hdu = fits.PrimaryHDU(data=B_interp, header=wcs.to_header())
 f = aplpy.FITSFigure(hdu, figsize = (12, 12))
 f.set_theme('publication')
@@ -307,14 +326,12 @@ dx = dx[30:-30,230:-270]
 dy = dy[30:-30,230:-270]
 IX = IX[30:-30,230:-270]
 IY= IY[30:-30,230:-270]
-
 vectors = np.array([dx,dy])
 #plot_vectors(ax, vectors, IY, IX, nskip = 30, alph = 0.4, col = 'white', pot = False)
-#plot_streams(ax, vectors, IX, IY, nskip = 30, alph = 0.4, col = 'yellow', vec = False)
-#plt.savefig(os.path.join(save_files_here, 'cftHI_5arcmin_' + str(band)\
+plot_streams(ax, vectors, IX, IY, nskip = 30, alph = 0.4, col = 'yellow', vec = False)
+plt.savefig(os.path.join(save_files_here, 'cftHI_5arcmin_' + str(band)\
              + '_' + str(L) + 'pc' + '.png'), format='png', bbox_inches = 'tight')
 
-"""
 """
 hdu = fits.PrimaryHDU(data=V_interp, header=wcs.to_header())
 fv = aplpy.FITSFigure(hdu, figsize = (12, 12))
@@ -377,16 +394,17 @@ vectors = np.array([dx,dy])
 #plot_vectors(ax, vectors, IY, IX, nskip = 30, alph = 0.4, col = 'white', pot = False)
 plot_streams(ax, vectors, IX, IY, nskip = 30, alph = 0.5, col = 'white', vec = False)
 #plt.savefig(os.path.join(save_files_here, 'nH2_5arcmin.png'), format='png', bbox_inches = 'tight')
-"""
+
 dx = dx[30:-30,230:-270]
 dy = dy[30:-30,230:-270]
 IX = IX[30:-30,230:-270]
 IY= IY[30:-30,230:-270]
+"""
 V = V[30:-30,230:-270]
 B = B[30:-30,230:-270]
 I = I[30:-30,230:-270]
-vectors = np.array([dx,dy])
-"""
+#vectors = np.array([dx,dy])
+
 ###############################
 # B LIC FIGURE
 ###############################
@@ -398,14 +416,18 @@ plt.figure(figsize = (12,12))
 plt.subplot(projection=wcs)
 ax = plt.gca()
 plt.imshow(mult, cmap = 'inferno', vmin = 70, vmax  = 110, interpolation = 'bilinear')
-ax.set_facecolor("k")
-ax.coords['ra'].set_axislabel('RA (J2000)')
-ax.coords['dec'].set_axislabel('Dec (J2000)')
-plt.tight_layout()
+#ax.set_facecolor("k")
+plt.xlabel('RA (J2000)')
+plt.ylabel('Dec (J2000)')
+#ax.coords['ra'].set_axislabel('RA (J2000)')
+#ax.coords['dec'].set_axislabel('Dec (J2000)')
+pretty()
 plt.savefig(os.path.join(save_files_here, 'B_lic_' + str(band)\
-       + '_' + str(L) + 'pc' + '.png'), format='eps', bbox_inches = 'tight')
+       + '_' + str(L) + 'pc' + '.eps'), format='eps', bbox_inches = 'tight')
 
-#plot_streams(ax, vectors, IX, IY, nskip = 30, alph = 0.5, col = 'white', vec = False)
+################################################
+# V FWHM scatter with pol vectors
+################################################
 plt.figure(figsize = (12,12))
 plt.subplot(projection=wcs)
 plt.scatter(IX, IY, c = V, cmap = 'viridis', vmin = 15, vmax = 35)
@@ -414,20 +436,27 @@ ax = plt.gca()
 plot_vectors(ax, vectors, IY, IX, nskip = 20, alph = 0.3, col = 'white', pot = False)
 ax.coords['ra'].set_axislabel('RA (J2000)')
 ax.coords['dec'].set_axislabel('Dec (J2000)')
-cbar = plt.colorbar()
+ax.tick_params(axis='both', width = 2)
+cbar = plt.colorbar(pad = 0.01)
 cbar.set_label(r'V$_{FWHM}$ [km/s]')
 plt.savefig(os.path.join(save_files_here, 'VFWHM_vectors.png'), format='png', bbox_inches = 'tight')
 
+####################################
+# B scatter with pol vectors
+###################################
 plt.figure(figsize = (12,12))
 plt.subplot(projection=wcs)
 #ax.set_facecolor("k")
 plt.scatter(IX, IY, c = B, cmap = 'inferno', vmin = 10, vmax = 400)
 ax = plt.gca()
-cbar = plt.colorbar()
+cbar = plt.colorbar(pad = 0.01)
 cbar.set_label(r'B$_{pos}$ [$\mu$G]')
 ax.coords['ra'].set_axislabel('RA (J2000)')
 ax.coords['dec'].set_axislabel('Dec (J2000)')
+ax.tick_params(axis='both', width = 2)
 plot_vectors(ax, vectors, IY, IX, nskip = 20, alph = 0.3, col = 'white', pot = False)
+plt.savefig(os.path.join(save_files_here, 'B_vectors_' + str(band)\
+              + '_' + str(L) + 'pc' + '.png'), format='png', bbox_inches = 'tight')
 
 #overlay = ax.get_coords_overlay('galactic')
 #overlay[0].set_axislabel('Galactic Longitude')
@@ -439,21 +468,47 @@ plot_vectors(ax, vectors, IY, IX, nskip = 20, alph = 0.3, col = 'white', pot = F
 #ax.coords['dec'].set_axislabel('Dec (J2000)')
 #ax.coords.grid(color='red', linestyle='solid', alpha=0.5)
 
-plt.savefig(os.path.join(save_files_here, 'B_vectors_' + str(band)\
-              + '_' + str(L) + 'pc' + '.png'), format='png', bbox_inches = 'tight')
-
-"""
 B0p5pc = np.load('Bhist_500_0.5pc.npy')
 B5pc = np.load('Bhist_500_5pc.npy')
 B5pc = B5pc[B5pc > 15.0]
 B0p5pc = B0p5pc[B0p5pc > 40.0]
-plt.figure()
-plt.hist(B0p5pc, bins = 500, color = 'C0', alpha = 0.7)
-plt.hist(B5pc, bins = 500, color = 'purple', alpha = 0.7)
+plt.figure(figsize = (12,12))
+plt.hist(B0p5pc, bins = 500, histtype='bar', ec='black',\
+      color = 'C0', alpha = 0.7, label = 'L = 0.5 pc')
+plt.hist(B5pc, bins = 500, histtype='bar', ec='black',\
+      color = 'purple', alpha = 0.7, label = 'L = 5 pc')
 plt.xlabel(r"B$_{pos}$ $\mu$G")
 plt.ylabel('N')
-plt.xlim(10, 1000)
-#plt.xlim(14, 39)
+plt.xlim(10, 900)
+plt.savefig(os.path.join(save_files_here, 'B_hist_' + str(band) + '.eps'),\
+       format='eps', bbox_inches = 'tight')
+plt.legend(loc = 'upper right')
 pretty()
 
-
+n5pc = np.load('nH2_500_5pc_hist.npy')
+n0p5pc = np.load('nH2_500_0p5pc_hist.npy')
+fig = plt.figure(figsize = (17,12))
+ax = fig.add_subplot(111)
+ax.spines['top'].set_color('none')
+ax.spines['bottom'].set_color('none')
+ax.spines['left'].set_color('none')
+ax.spines['right'].set_color('none')
+ax.tick_params(labelcolor='w', top='off', bottom='off', left='off', right='off')
+ax1 = fig.add_subplot(121)
+plt.hist(n0p5pc, bins = 500, histtype='bar', ec='black',\
+            color = 'C0', alpha = 0.7, label = 'L = 0.5 pc')
+ax1.set_xlim(0, 6000)
+plt.legend(loc = 'upper right')
+pretty()
+ax2 = fig.add_subplot(122, sharey = ax1)
+ax2.axes.get_yaxis().set_visible(False)
+plt.hist(n5pc, bins = 500, histtype='bar', ec='black',\
+            color = 'purple', alpha = 0.7, label = 'L = 5 pc')
+ax2.set_xlim(0, 600)
+plt.legend(loc = 'upper right')
+pretty()
+ax.set_xlabel(r"n(H$_{2}$) cm$^{-3}$")
+ax.set_ylabel('N')
+fig.subplots_adjust(wspace=0,hspace=0)
+plt.savefig(os.path.join(save_files_here, 'nH2_hist_' + str(band) + '.png'),\
+       format='png', bbox_inches = 'tight')
