@@ -4,8 +4,9 @@
 #include<errno.h>
 #include<string.h>
 
-#define PSTEPS 51 // Num streamline steps from start, for forward or back
+#define PSTEPS 61 // Num streamline steps from start, for forward or back
 #define HANNING 1 // Set to 1 to use hanning kernel, 0 for boxcar
+#define L 61 // convolution kernel length
 #define PI 3.14159265358979323846
 
 typedef struct vector_field {
@@ -283,7 +284,8 @@ double kern(int i)
 {
     // boxcar
     if (HANNING) {
-        return 0.5*(1. - cos(i * 2*PI / (PSTEPS - 1)));
+        // return 0.5*(1. - cos(i * 2*PI / (L - 1)));
+        return 0.5*(cos(i * PI/L) + 1.0);
     } else {
         return 1.;
     }

@@ -3,10 +3,9 @@ import numpy as np
 from getIQU import IQU
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
+import glob
 
 #plt.ion()
-#fig, ax = plt.subplots(figsize = (10.24, 7.68), dpi = 100)
-#fig.set_facecolor("k")
 
 def pix_idx(P, ys, xs):
     """Returns grid indices corresponding to point P"""
@@ -34,11 +33,14 @@ def plot_vectors(ax, vectors, ys, xs, nskip = 1, alph = 1, col = 'white', pot = 
     if pot:
         plot_pot()
     mag = np.sqrt(vectors[0]**2 + vectors[1]**2)
-    ax.quiver(xs[skip], ys[skip], (vectors[0]/mag)[skip], (vectors[1]/mag)[skip],\
-             angles = 'xy', units = 'xy', scale_units = 'xy', headwidth = 1,\
-             headaxislength = 2, headlength = 2, color = col, alpha = alph)
+    #xcomp = (vectors[0]/mag)[skip]
+    #ycomp = (vectors[1]/mag)[skip]
+    xcomp = (vectors[0])[skip]
+    ycomp = (vectors[1])[skip]
+    q = ax.quiver(xs[skip], ys[skip], xcomp, ycomp, units = 'x')#angles = 'xy', units = 'xy', scale = 1,\
+    #headaxislength = 2, headlength = 1, color = 'k')
     #ax.set(xticks = X, yticks = Y, aspect=1, title='Scratch', xlabel = 'x', ylabel = 'y')
-    return
+    return q
 
 def new_P(idx, vectors, start, temp_pos, ys, xs, back = False):
     """Uses Euler's method to advect the streamline to the next position.
@@ -57,32 +59,46 @@ def new_P(idx, vectors, start, temp_pos, ys, xs, back = False):
             #vx2, vy2, angle2 = get_vector(temp_pos[idx - 2], vectors, ys, xs)
             #if (np.abs(angle2 - angle) >= 155.):
             #    return temp_pos, None
+    Px = temp_pos[idx - 1][0]
+    Py = temp_pos[idx - 1][1]
+    #Px = np.int(temp_pos[idx - 1][0])
+    #Py = np.int(temp_pos[idx - 1][1])
+    mag = np.sqrt(vx**2 + vy**2)
     if back:
         vx *= -1.
         vy *= -1.
-    Px = np.int(temp_pos[idx - 1][0])
-    Py = np.int(temp_pos[idx - 1][1])
-    mag = np.sqrt(vx**2 + vy**2)
-    s_top = ((Py + 1) - temp_pos[idx - 1][1])*(mag/vy)
+    s_top = ((Py + 1.0) - temp_pos[idx - 1][1])*(mag/vy)
     s_bot = (Py - temp_pos[idx - 1][0])*(mag/vy)
-    s_right = ((Px + 1) - temp_pos[idx - 1][0])*(mag/vx)
+    s_right = ((Px + 1.0) - temp_pos[idx - 1][0])*(mag/vx)
     s_left = (Px - temp_pos[idx - 1][1])*(mag/vx)
     slist = np.array([s_top, s_bot, s_left, s_right])
     for s in slist:
         if (np.isnan(s)):
             return temp_pos, None
-    if (slist < 0).all():
-        s = np.min(np.abs(slist))
+    if (slist == 0).all():
+        s = 0
+    elif (slist < 0).all():
+        s = np.min(np.abs(slist[slist != 0]))
     else:
-        s = np.min(slist[slist >= 0.])
+        s = np.min(np.abs(slist[slist != 0]))
+    #print slist, s
     # add small amount to s to ensure that P is new pixel
-    s += 0.08
+    #s += 0.08
     new_Px = temp_pos[idx - 1][0] + ((vx/mag)*s)
     new_Py = temp_pos[idx - 1][1] + ((vy/mag)*s)
-    if (np.abs(new_Px - temp_pos[idx - 1][0]) > 2.):
+
+    if (new_Px < np.min(xs)) or (new_Px > np.max(xs)) or\
+          (np.abs(new_Px - temp_pos[idx - 1][0]) > 1.5):
         return temp_pos, None
-    if (np.abs(new_Py - temp_pos[idx - 1][1]) > 2.):
+    if (new_Py < np.min(ys)) or (new_Py > np.max(ys)) or\
+          (np.abs(new_Py - temp_pos[idx - 1][1]) > 1.5):
         return temp_pos, None
+
+    #if (new_Px < np.min(xs)) or (new_Px > np.max(xs)):
+    #    return temp_pos, None
+    #if (new_Py < np.min(ys)) or (new_Py > np.max(ys)):
+        return temp_pos, None
+
     #if (new_Px > xs[0].max() or new_Px < xs[0].min()):
     #    return temp_pos, None
     #if (new_Py > ys[:,0].max() or new_Py < ys[:,0].min()):
@@ -90,7 +106,7 @@ def new_P(idx, vectors, start, temp_pos, ys, xs, back = False):
     temp_pos.append((new_Px, new_Py))
     return temp_pos, s
 
-def sl(start, vectors, ys, xs, plot = False):
+def sl(start, vectors, ys, xs, plot = False, Psteps = 51):
     """Calculates a streamline centered on start"""
     # forward advection
     forward_pos = []
@@ -112,6 +128,7 @@ def sl(start, vectors, ys, xs, plot = False):
             back_seg.append(seg)
         else:
             break
+    #print len(forward_seg), len(back_seg)
     streamline = list(reversed(forward_pos[1:]))
     streamline.extend(back_pos)
     # clean streamline of NaNs
@@ -136,11 +153,11 @@ def sl(start, vectors, ys, xs, plot = False):
                 units = 'xy', scale_units = 'xy', headwidth = 2, headaxislength = 2,\
                 headlength = 2, scale = 1)
     if (plot):
-        ax.scatter(streamline[:,0], streamline[:,1])
+        ax.scatter(streamline[:,0], streamline[:,1], alpha = 0.7)
         ax.plot(streamline[:,0], streamline[:,1])
     return forward_seg, forward_pos, back_seg, back_pos, streamline
 
-def plot_streams(ax, vectors, xs, ys, nskip = 10, col = 'white', alph= 1, vec = False, pot = False):
+def plot_streams(ax, vectors, xs, ys, nskip = 10, col = 'red', alph = 1, vec = False, pot = False, Psteps = 51):
     """plots all streamlines. Launches a streamline from every
         grid point, modulo nskip.
         @param nskip: skip every nskip pixel
@@ -152,12 +169,14 @@ def plot_streams(ax, vectors, xs, ys, nskip = 10, col = 'white', alph= 1, vec = 
         plot_pot()
     for i in xs[0][::nskip]:
         for j in ys[:,0][::nskip]:
-            __, __, __, __, streamline = sl([i, j], vectors, ys, xs)
+            __, __, __, __, streamline = sl([i, j], vectors, ys, xs, Psteps = Psteps)
             if not streamline.size:
                 continue
             #if len(s.streamline[:,0]) < 5:
             #    continue
-            ax.plot(streamline[:,0], streamline[:,1], color = col, alpha = alph)
+            ax.plot(streamline[:,0], streamline[:,1], c = col, alpha = alph)
+            #ax.scatter(streamline[:,0], streamline[:,1], c = col, alpha = alph)
+            #ax.scatter(i,j, c = 'k', alpha = 0.1)
     #ax.set_facecolor("k")
     return
 
@@ -255,15 +274,15 @@ def plot_lic(shape, vectors, texture):
     #ax.set(xticks = X, yticks = Y, aspect=1, title='Scratch', xlabel = 'x', ylabel = 'y')
     plt.tight_layout()
     return image
-
-Psteps = 51
 """
 band = sys.argv[1]
 bands = ['250', '350', '500']
 stokes = ['I', 'Q', 'U']
 pol_eff = [0.81, 0.79, 0.82]
+blastpol_dir = './carinaData/smooth/3.0_arcmin'
+filename = glob.glob(blastpol_dir + '/carinaneb_' + band + '_smoothed_3.0_rl.fits')[0]
 # load in I, Q, U for desired band
-Ivals, Qvals, Uvals = IQU(band)
+Ivals, Qvals, Uvals, __, __ = IQU(filename)
 I = Ivals[30:-30,260:-260]
 Q = Qvals[30:-30,260:-260]
 U = Uvals[30:-30,260:-260]
@@ -283,6 +302,8 @@ xsize, ysize = len(X), len(Y)
 vectors = np.array([dx,dy])
 white = np.random.rand(xsize, ysize)
 
-#plot_streams(vectors, xs, ys, nskip = 10, vec = True)
-#image = plot_lic([xsize, ysize], vectors, white)
+plt.figure()
+ax = plt.gca()
+plot_streams(ax, vectors, xs, ys, nskip = 10, vec = True)
 """
+#image = plot_lic([xsize, ysize], vectors, white)

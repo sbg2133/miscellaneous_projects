@@ -28,7 +28,7 @@ blastpol_dir = './carinaData/smooth/3.0_arcmin'
 filename = glob.glob(blastpol_dir + '/carinaneb_' + band + '_smoothed_3.0_rl.fits')[0]
 
 # load in I, Q, U for desired band
-Ivals, Qvals, Uvals, wcs = IQU(band, filename)
+Ivals, Qvals, Uvals, __, wcs = IQU(filename)
 
 I = Ivals[30:-30,260:-260]
 Q = Qvals[30:-30,260:-260]
@@ -37,11 +37,12 @@ Pvals = np.sqrt(Q**2 + U**2)
 pvals = Pvals/I
 
 # Correct pvals as in Jamil's thesis, 5.7
-#pvals[pvals > 0.5] = np.nan
+pvals[pvals > 0.5] = np.nan
+pvals[pvals < 0] = np.nan
 pvals /= pol_eff[bands.index(band)]
 phi = 0.5*np.arctan2(U,Q)
-dx = np.cos(phi)
-dy = np.sin(phi)
+dx = pvals*np.cos(phi)
+dy = pvals*np.sin(phi)
 mag = np.sqrt(dx**2 + dy**2)
 X = np.linspace(0, I.shape[1], I.shape[1])
 Y = np.linspace(0, I.shape[0], I.shape[0])
@@ -68,7 +69,8 @@ vectors = np.array([dx,dy])
 #white = np.random.rand(xsize, ysize)
 #white = np.random.uniform(low = 0., high = 1., size = (xsize, ysize))
 white = np.random.normal(0., 1., size = (xsize,ysize))
-#white = scipy.ndimage.gaussian_filter(white, sigma)
+sigma = 1.02
+white = scipy.ndimage.gaussian_filter(white, sigma)
 
 with file('texture.dat', 'w') as outfile:
     for row in white:
@@ -87,12 +89,12 @@ command = ["./carina_lic", str(xsize), str(ysize)]
 call(command)
 
 lic = np.loadtxt("./lic.dat")
-#np.save('lic.npy', lic)
+np.save('lic.npy', lic)
 lic = np.transpose(lic)
-#lic = np.load("lic.npy")
-#lic += np.abs(np.nanmin(lic))
-#lic[lic > 3*np.nanstd(lic)] *= 100*lic[lic > 3*np.nanstd(lic)]
-mult =  lic * I
+lic2 = np.load("lic.npy")
+lic2 += np.abs(np.nanmin(lic2))
+lic2[lic2 > 3*np.nanstd(lic2)] *= 100*lic2[lic2 > 3*np.nanstd(lic2)]
+mult =  lic2 * I
 
 """
 blur_size = 8
@@ -104,26 +106,29 @@ lowpass = scipy.ndimage.gaussian_filter(lic, 5)
 highpass = lic - lowpass
 highpass += lic
 """
+"""
 fig1 = plt.figure(figsize=(10.24, 7.68), dpi = 100)
 ax = fig1.add_subplot(1, 1, 1, projection=wcs)
 ax.set_facecolor("k")
+#plt.pcolor(X, Y, lic, cmap='inferno')
 ax.imshow(lic, cmap = "inferno", interpolation = "hanning")
 ax.tick_params(axis='x', labelsize=18)
 ax.tick_params(axis='y', labelsize=18)
 ax.set_xlabel('RA', fontsize = 16, fontweight = 'bold')
 ax.set_ylabel('DEC', fontsize = 16, fontweight = 'bold')
 plt.tight_layout()
+"""
 
-fig2 = plt.figure(figsize=(10.24, 7.68), dpi = 100)
+fig2 = plt.figure()
 ax = fig2.add_subplot(1, 1, 1, projection=wcs)
-plt.imshow(I, cmap = "inferno", alpha = 1)
-plt.imshow(lic, cmap = "gray", alpha = 0.30, interpolation = "nearest")
+plt.imshow(I, cmap = "inferno", alpha = 0.9)
+plt.imshow(lic, cmap = "gray", alpha = 0.4, interpolation = "bilinear")
 ax.tick_params(axis='x', labelsize=18)
 ax.tick_params(axis='y', labelsize=18)
-ax.set_xlabel('RA', fontsize = 16, fontweight = 'bold')
-ax.set_ylabel('DEC', fontsize = 16, fontweight = 'bold')
-ax.set_facecolor("k")
-plt.tight_layout()
+ax.set_xlabel('RA', fontsize = 18)
+ax.set_ylabel('DEC', fontsize = 18)
+#ax.set_facecolor("k")
+#plt.tight_layout()
 
 ##################################################
 # For 250 um: v = 1000
@@ -131,12 +136,12 @@ plt.tight_layout()
 # For 500 um: v = 200
 
 v = [0.25, 0.4, 0.5]
-fig3 = plt.figure(figsize=(10.24, 7.68), dpi = 100)
+fig3 = plt.figure()
 ax = fig3.add_subplot(1, 1, 1, projection=wcs)
 plt.imshow(mult, cmap = "inferno", vmin = 0, vmax = v[bands.index(band)])
 ax.tick_params(axis='x', labelsize=18)
 ax.tick_params(axis='y', labelsize=18)
-ax.set_xlabel('RA', fontsize = 16, fontweight = 'bold')
-ax.set_ylabel('DEC', fontsize = 16, fontweight = 'bold')
-ax.set_facecolor("k")
-plt.tight_layout()
+ax.set_xlabel('RA', fontsize = 18)
+ax.set_ylabel('DEC', fontsize = 18)
+#ax.set_facecolor("k")
+#plt.tight_layout()

@@ -113,6 +113,10 @@ def plotIntensity(band, streamlines = False, nskip = 10, annotate = False):
     ax.scatter(HD93_ra.deg, HD93_dec.deg, transform=ax.get_transform('world'), s=100, edgecolor='yellow', facecolor='none')
     ax.set_xlim(-0.5, I.shape[1] - 0.5)
     ax.set_ylim(-0.5, I.shape[0] - 0.5)
+    overlay = ax.get_coords_overlay('galactic')
+    overlay.grid(color='white', ls='dotted')
+    overlay[0].set_axislabel('Galactic Longitude')
+    overlay[1].set_axislabel('Galactic Latitude')
     if annotate:
         # eta carinae
         pix = wcs.wcs_world2pix(EC_ra.deg, EC_dec.deg, 0)

@@ -1,0 +1,10 @@
+ROOT_DIR /home/wizwit/miscellaneous_projects/carina/carinaData
+SIG_FILE mopraData/G287_288.-2.0_0.5.12CO_sigma.fits
+CUBE_FILE smooth/co12_smooth_3.0_arcmin.fits
+BLAST250_FILE smooth/3.0_arcmin/carinaneb_250_smoothed_3.0_rl.fits
+
+CDELTA_V 8.33333333333e-03
+CDELTA_BLAST 0.00277777777778
+
+VMIN -605610.0
+VMAX 481257.0

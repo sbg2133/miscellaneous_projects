@@ -1,0 +1,11 @@
+ROOT_DIR /home/wizwit/miscellaneous_projects/carina/carinaData/smooth
+CUBE_FILE HI_smooth_5.0_arcmin.fits
+BLAST250_FILE 5.0_arcmin_no_kernnorm/carinaneb_250_smoothed_5.0_rl_cal.fits
+BLAST350_FILE 5.0_arcmin_no_kernnorm/carinaneb_350_smoothed_5.0_rl_cal.fits
+BLAST500_FILE 5.0_arcmin_no_kernnorm/carinaneb_500_smoothed_5.0_rl_cal.fits
+
+CDELTA_V 2.77777798786e-03
+CDELTA_BLAST 0.00277777777778
+
+VMIN -55503.0
+VMAX 144510.0

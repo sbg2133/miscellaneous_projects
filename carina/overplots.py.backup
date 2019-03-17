@@ -1,0 +1,68 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+from getIQU import IQU
+from streamLines import plot_streams
+from scipy import ndimage
+from astropy import units as u
+from astropy.coordinates import Angle
+from astropy.visualization.wcsaxes import WCSAxes
+from astropy.visualization.wcsaxes import SphericalCircle
+from astropy.visualization import make_lupton_rgb
+from astropy.io import fits
+from astropy.wcs import WCS
+from astropy import wcs
+import aplpy
+import matplotlib.image as mpimg
+from streamLines import plot_vectors
+from intensity_plots_aplpy import getPsi
+plt.ion()
+
+#imgplot = plt.imshow(img)
+smooth250 = './carinaData/smooth/3.0_arcmin/carinaneb_250_smoothed_3.0_rl.fits'
+#w = wcs.WCS(naxis=2)
+#w.wcs.crpix = [220, 50]
+#w.wcs.cdelt = np.array([-0.0027777777777800001, 0.0027777777777800001])
+#w.wcs.crval = [162.17923500000001, -60.085338999999998]
+#w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+
+
+img = mpimg.imread('./carinaData/test5.png')
+newim = np.zeros((470, 930, 3))
+newim = img[0:470,0:930,:]
+fits = fits.open(smooth250)
+wcs = WCS(fits[1].header)
+#ctr_dec = Angle('-59d35m0s')
+#ctr_ra = Angle('10h43m22s')
+
+#fig = plt.figure()
+#f = aplpy.FITSFigure(smooth250, figure = fig)
+#f.show_rgb('./carinaData/test4.png')
+#f.set_theme('publication')
+#f.recenter(ctr_ra.deg, ctr_dec.deg, width = 1.25, height = 1.25)
+
+#ax = WCSAxes(fig, [0.1, 0.1, 0.8, 0.8], wcs=wcs)
+#fig.add_axes(ax)
+#ax = plt.gca()
+ax = plt.subplot(projection = wcs)
+ax.imshow(np.flipud(newim), origin = 'lower')
+ax.set_xlim(0,930)
+ax.set_ylim(0,470)
+ax.coords.grid(color='black', alpha = 0.5, ls='solid')
+ra = ax.coords['ra']
+dec = ax.coords['dec']
+ra.set_axislabel('RA', fontsize = 14)
+dec.set_axislabel('DEC', fontsize = 14)
+dec.set_major_formatter('dd:mm:ss.s')
+ra.set_major_formatter('hh:mm:ss.s')
+vectors = True
+streamlines = False
+if vectors:
+    I, Q, U, __, psi = getPsi(0, smooth250)
+    dx = np.cos(psi)
+    dy = np.sin(psi)
+    X = np.linspace(0, I.shape[1], I.shape[1])
+    Y = np.linspace(0, I.shape[0], I.shape[0])
+    xs, ys = np.meshgrid(X,Y)
+    vectors = np.array([dx,dy])
+    plot_vectors(vectors, ys, xs, nskip = 20, alph = 0.6)

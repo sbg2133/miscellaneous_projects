@@ -31,7 +31,7 @@ blastpol_dir = './carinaData/smooth/3.0_arcmin'
 filename = glob.glob(blastpol_dir + '/carinaneb_' + band + '_smoothed_3.0_rl.fits')[0]
 
 # load in I, Q, U for desired band
-Ivals, Qvals, Uvals, wcs = IQU(band, filename)
+Ivals, Qvals, Uvals, __, wcs = IQU(filename)
 wcs.wcs.crpix[0] -= 260
 wcs.wcs.crpix[1] -= 30
 I = Ivals[30:-30,260:-260]
@@ -111,7 +111,7 @@ f1.axis_labels.set_font(size=16)
 f1.tick_labels.set_font(size=14)
 #  scalebar
 f1.add_scalebar(30/60.) # arcmin
-f.scalebar.set_label('20 pc')
+f1.scalebar.set_label('20 pc')
 f1.scalebar.set_color('white')
 f1.scalebar.set_corner('bottom right')
 f1.scalebar.set_linewidth(2)
@@ -143,7 +143,7 @@ f2.scalebar.set_font_size(size = 'large')
 #f2.grid.set_alpha(0.2)
 norm = ImageNormalize(lic, interval=MinMaxInterval(), stretch=PowerStretch(1.05))
 plt.imshow(lic, alpha = 0.4, origin = 'lower', norm = norm, interpolation = 'hamming', cmap = 'gray')
-plt.savefig('./lic_overplot.png', dpi = 100, bbox_inches = 'tight')
+#plt.savefig('./lic_overplot.png', dpi = 100, bbox_inches = 'tight')
 plt.tight_layout()
 
 hdu3 = fits.PrimaryHDU(data=mult, header=wcs.to_header())
@@ -167,8 +167,8 @@ f3.scalebar.set_font_size(size = 'large')
 #f3.add_grid()
 #f3.grid.set_color('yellow')
 #f3.grid.set_alpha(0.2)
-fits.writeto('./mult2.fits', mult, header=wcs.to_header())
-plt.savefig('./mult.png', dpi = 100, bbox_inches = 'tight')
+#fits.writeto('./mult2.fits', mult, header=wcs.to_header())
+#plt.savefig('./mult.png', dpi = 100, bbox_inches = 'tight')
 plt.tight_layout()
 
 #im = convolve_fft(lic, I, fft_pad=True, psf_pad=True)

@@ -68,29 +68,99 @@ WR_ra = Angle('10h44m10.391s')
 HD93_dec = Angle('-59d44m15.44s')
 HD93_ra = Angle('10h44m33.739s')
 # Trumpler 16 10 45 10.0 -59 43 0
-T16_dec = Angle('-59d43m0s')
-T16_ra = Angle('10h45m10s')
+TR16_dec = Angle('-59d43m0s')
+TR16_ra = Angle('10h45m10s')
 # Trumpler 14 10 43 56  -59 33 00
 TR14_dec = Angle('-59d33m0s')
 TR14_ra = Angle('10h43m56s')
 # CPD 59.2661, star in "Treasure Chest" 10 46 54 -59.2661
 CPD_dec = Angle('-59d57m0s')
 CPD_ra = Angle('10h46m54s')
-marker_dec = np.array([EC_dec.deg, WR_dec.deg, HD93_dec.deg, CPD_dec.deg])
-marker_ra = np.array([EC_ra.deg, WR_ra.deg, HD93_ra.deg, CPD_ra.deg])
-labels = ['eta Car', 'WR25', 'HD93205', 'CPD'] 
+marker_dec = np.array([TR14_dec.deg, TR16_dec.deg, EC_dec.deg])
+marker_ra = np.array([TR14_ra.deg, TR16_ra.deg, EC_ra.deg])
+labels = ['Tr14', 'Tr16', 'eta Car']
 
 def getPsi(filename):
-    I, Q, U, wcs = IQU(filename)
+    I, Q, U, __, wcs = IQU(filename)
     Pvals = np.sqrt(Q**2 + U**2)
     pvals = Pvals/I
-    # pvals /= pol_eff[band_idx]
+    #pvals /= pol_eff[band_idx]
     psi = 0.5*np.arctan2(U,Q)
     return I, Q, U, wcs, psi
 
+# radius in pixels
+def radialProfile(data, center):
+    #data = data[int(center[0]) - radius:int(center[0]) + radius, int(center[1]) - radius:int(center[1]) + radius]
+    x, y = np.indices((data.shape))
+    r = np.sqrt((x - center[0])**2 + (y - center[1])**2)
+    r = r.astype(np.int)
+    tbin = np.bincount(r.ravel(), data.ravel())
+    nr = np.bincount(r.ravel())
+    radialprofile = tbin / nr
+    return radialprofile
+
+# center = [ra (deg), dec (deg)], radius in pixels
+def getRProfile(filename, center):
+    I, __, __, wcs, psi = getPsi(filename)
+    psi = np.degrees(psi)
+    psi[np.isnan(psi)] = 0
+    wx, wy = wcs.wcs_world2pix(center[0], center[1], 0)
+    center_pix = [wx, wy]
+    print "Center (pix) =", center
+    radial_profile = radialProfile(psi, center_pix)
+    # Plot radial profile
+    plt.figure(figsize = (10.24, 7.68))
+    plt.title('Radial profile, center (RA,DEC (deg)) = ' + str(np.round(center[0],2))\
+                + ', ' + str(np.round(center[1])))
+    parsecs =  np.arange(len(radial_profile))*wcs.wcs.cdelt[1]*10
+    plt.plot(parsecs[parsecs <= 2], radial_profile[parsecs <=2], 'x--')
+    plt.xlabel('pc')
+    plt.ylabel('Averaged Pol. Angle (deg)')
+    plt.grid()
+    outfile = './rprofile_' + str(np.round(center[0],2)) + '_' + str(np.round(center[1])) + '.png'
+    plt.savefig(outfile, dpi = 100, bbox_inches = 'tight')
+    return radial_profile
+
+# See Benton thesis, page 115, 116
+def variancePfrac(filename, idx):
+    I, Q, U, covar, wcs = IQU(filename)
+    P = np.sqrt(Q**2 + U**2)
+    P[P <= 3*np.nanvar(P)] = np.nan
+    Phat = P - (np.nanvar(P)/(2*P))
+    p = Phat/I
+    print np.nanmean(p)
+    p /= pol_eff[idx]
+    print np.nanmean(p)
+    q = Q/I
+    u = U/I
+    #q[q < 0.] = np.nan
+    #u[u < 0.] = np.nan
+    qterm = q**2*np.nanvar(q)
+    uterm = u**2*np.nanvar(u)
+    crossterm = 2*q*u*np.sqrt(covar)
+    var_p = (1./p**2)*(qterm + uterm + crossterm)
+    #plot 
+    hdu = fits.PrimaryHDU(np.sqrt(var_p), header=wcs.to_header())
+    fig = plt.figure(figsize = (10.24, 7.68))
+    f = aplpy.FITSFigure(hdu, figure = fig)
+    f.set_theme('publication')
+    ax = plt.gca()
+    #ax.set_facecolor("k")
+    f.show_colorscale(cmap = 'inferno')
+    f.axis_labels.set_font(size=16)
+    f.tick_labels.set_font(size = 14)
+    f.add_colorbar()
+    f.colorbar.set_location('right')
+    f.colorbar.show()
+    #plt.tight_layout()
+    f.set_title(r"$\sigma$(p), E[p] = " + str(np.round(np.nanmean(p),2)), size = 16)
+    plt.tight_layout()
+    plt.savefig('./p_var.png', dpi = 100, bbox_inches = 'tight')
+    return
+
 def addScalebar(fig, label):
     #  scalebar
-    fig.add_scalebar(15/60.) # arcmin
+    fig.add_scalebar(15/60.) # degrees
     fig.scalebar.set_color('white')
     fig.scalebar.set_corner('bottom right')
     fig.scalebar.set_label(label)
@@ -98,18 +168,22 @@ def addScalebar(fig, label):
     fig.scalebar.set_font_size(14)
     return
 
-def plotIntensity(filename, streamlines = False, vec = True, nskip = 20, annotate = False):
+def plotIntensity(filename, streamlines = False, vec = True, nskip = 10, annotate = False):
     #plt.style.use('dark_background')
     f = aplpy.FITSFigure(filename)
     f.set_theme('publication')
+    f.set_yaxis_coord_type('latitude')
+    f.tick_labels.set_xformat('ddd.dd')
+    f.set_xaxis_coord_type('longitude')
+    f.tick_labels.set_yformat('dd.dd')
     plt.tight_layout()
     f.show_colorscale(cmap = 'inferno')
     f.axis_labels.set_font(size=16)
     f.tick_labels.set_font(size = 14)
     addScalebar(f, '10 pc')
-    f.add_grid()
-    f.grid.set_color('yellow')
-    f.grid.set_alpha(0.3)
+    #f.add_grid()
+    #f.grid.set_color('yellow')
+    #f.grid.set_alpha(0.3)
     ra, dec = marker_ra, marker_dec
     if annotate:
         f.show_markers(ra, dec, edgecolor='white', facecolor='none',
@@ -135,7 +209,7 @@ def plotIntensity(filename, streamlines = False, vec = True, nskip = 20, annotat
         #putStreamlines(ax, smooth500, nskip, vec = True, alph = 0.5, col = 'red')
     ax.set_facecolor("k")
     plt.tight_layout()
-    plt.savefig('./intensity.png', dpi = 100, bbox_inches = 'tight')
+    #plt.savefig('./intensity.png', dpi = 100, bbox_inches = 'tight')
     return
 
 def overplotPlanck(filename, streamlines = False, vec = True, nskip = 20, annotate = False):
@@ -324,8 +398,8 @@ def curlIntensity(filename, annotate = False, streamlines = False, nskip = 20, z
 
 def plotSobelCurl(filename, annotate = False, streamlines = False, nskip = 20, zoom = False):
     curl, wcs = getCurl(smooth250)
-    #sx, sy = ndimage.sobel(curl, 0), ndimage.sobel(curl, axis = 1)
-    #mag = np.sqrt(sx**2 + sy**2)
+    sx, sy = ndimage.sobel(curl, 0), ndimage.sobel(curl, axis = 1)
+    mag = np.sqrt(sx**2 + sy**2)
     hdu1 = fits.PrimaryHDU(data=np.sqrt(curl**2), header=wcs.to_header())
     fig = plt.figure()
     f1 = aplpy.FITSFigure(hdu1, figure = fig)
@@ -378,12 +452,18 @@ def putStreamlines(ax, filename, nskip, alph = 1, col = 'yellow', vec = False):
     return
 
 #overplotIntensity(smooth500_4p8um, streamlines = False, vec = True, nskip = 30, annotate = True)
-#plotIntensity(smooth250, streamlines = True, vec = True, nskip = 30, annotate = True)
-#overplotBands(smooth250, streamlines = False, vec = True, nskip = 30, annotate = True)
+plotIntensity(smooth250, streamlines = False, vec = False, nskip = 30, annotate = True)
+#overplotBands(smooth250, streamlines = False, vec = False, nskip = 30, annotate = True)
 
 #plotIntensity(smooth350, streamlines = True, nskip = 30, annotate = True)
-#plotIntensity(smooth500, streamlines = True, nskip = 30, annotate = True)
+
+#plotIntensity(smooth500, streamlines = False, nskip = 10, annotate = True)
+#profile = getRProfile(smooth250, [161.25, -59.74])
+#profile = getRProfile(smooth250, [160.83, -59.58])
+
 #getCurl(smooth250, annotate = True, streamlines = False, plot = True, zoom = True)
-#curlIntensity(smooth250, annotate = True, streamlines = True, zoom = False)
-#plotSobelCurl(smooth250, annotate = True, streamlines = True, zoom = False)
+#curlIntensity(smooth250, annotate = True, streamlines = False, zoom = True)
+#plotSobelCurl(smooth250, annotate = False, streamlines = False, zoom = True)
 #gradi, gradq, i, q = gradDots(smooth250, annotate = True, streamlines = True, zoom = False)
+
+
