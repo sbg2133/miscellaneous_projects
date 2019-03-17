@@ -1,7 +1,5 @@
 ./carinaData
 ./papers
+./ignore
 ./velocityMaps/large_files
-./velocityMaps/v_array_skip3.npy
-./velocityMaps/v_array_HI.npy
-./velocityMaps/varray_CO13_5arcmin.npy
-./cube.fits
+*.pyc
