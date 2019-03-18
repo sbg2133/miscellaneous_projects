@@ -110,10 +110,12 @@ if len(sys.argv) > 2:
 
 lic = np.loadtxt("./lic.dat")
 lic = np.transpose(lic)
+lic -= np.nanmin(lic)
 #np.save('lic.npy', lic)
 #lic2 = np.load("lic.npy")
 #lic = scipy.ndimage.gaussian_filter(lic, 1.01)
 mult = lic * I
+mult -= np.nanmin(lic)
 
 """
 blur_size = 8
@@ -141,7 +143,7 @@ f2.axis_labels.set_font(size=16)
 f2.tick_labels.set_font(size=14)
 plt.imshow(I, origin = 'lower', cmap = "inferno", alpha = 1)
 #plt.imshow(lic, vmin = -0.07, vmax = 0.3, origin = 'lower', cmap = "gray", alpha = 0.4, interpolation = "bilinear")
-plt.imshow(lic, vmin = -0.1, vmax = 0.5, origin = 'lower', cmap = "gray", alpha = 0.5, interpolation = "bilinear")
+plt.imshow(lic, vmin = 0.25, vmax = 1.0, origin = 'lower', cmap = "gray", alpha = 0.5, interpolation = "bilinear")
 plt.tight_layout()
 #f2.savefig(os.path.join(save_files_here, 'lic_han_51.eps'), format='eps', dpi=1000, transparent = True)
 #plt.savefig(os.path.join(save_files_here, 'lic_han_51.png'), format='png', bbox_inches = 'tight')
@@ -166,8 +168,8 @@ f3.tick_labels.set_yformat('dd.dd')
 f3.tick_labels.set_xformat('dd.dd')
 f3.axis_labels.set_font(size=16)
 f3.tick_labels.set_font(size=14)
-vmin = [0.1, 0.4, 0.5]
-vmax = [150, 0.4, 0.5]
+vmin = [5, 5, 5]
+vmax = [200, 200, 200]
 plt.imshow(mult, origin = 'lower',\
       cmap = "inferno", vmin = vmin[bands.index(band)],\
      vmax = vmax[bands.index(band)], interpolation = 'bilinear')
