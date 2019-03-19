@@ -61,10 +61,10 @@ def IQU(filename, do_cov = False):
         new_hdu = blast.util.calc_pol_p_phi(new_map_hdu, cov_hdus=covar_hdu, pol_eff=pol_eff, var_norm=0.7368)
         P = new_hdu[1].data
         phi = new_hdu[2].data
-        p = new_hdu[3].data/100.0
+        p = new_hdu[3].data
         sig_P = new_hdu[4].data
         sig_phi = new_hdu[5].data
-        sig_p = new_hdu[6].data/100.0
+        sig_p = new_hdu[6].data
         pol_data = np.array([P, phi, p, sig_P, sig_phi, sig_p])
     else:
         pol_data = None

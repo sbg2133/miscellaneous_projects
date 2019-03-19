@@ -11,9 +11,13 @@ import scipy.ndimage
 from makePretty import pretty
 import aplpy
 from skimage import filters
+from add_regions import car_regions as reg
 #matplotlib.rcParams.update({'font.size':16})
 save_files_here = "/home/wizwit/SESE_dissertation/figures/chapter6"
 plt.ion()
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+save = 1
 
 if len(sys.argv) < 2:
     print "You must supply a band, 'e.g., carina_lic.py 250'"
@@ -127,6 +131,7 @@ lowpass = scipy.ndimage.gaussian_filter(lic, 5)
 highpass = lic - lowpass
 highpass += lic
 """
+wcs.wcs.crpix = [0.0, 0.0]
 hdu2 = fits.PrimaryHDU(data=np.zeros_like(I), header=wcs.to_header())
 f2 = aplpy.FITSFigure(hdu2, figsize = (10,10))
 f2.set_theme('publication')
@@ -140,13 +145,16 @@ f2.scalebar.set_label('10 pc')
 f2.tick_labels.set_yformat('dd.dd')
 f2.tick_labels.set_xformat('dd.dd')
 f2.axis_labels.set_font(size=16)
-f2.tick_labels.set_font(size=14)
+f2.tick_labels.set_font(size=16)
+f2.ticks.set_color('white')
+f2.ticks.set_linewidth('2')
 plt.imshow(I, origin = 'lower', cmap = "inferno", alpha = 1)
 #plt.imshow(lic, vmin = -0.07, vmax = 0.3, origin = 'lower', cmap = "gray", alpha = 0.4, interpolation = "bilinear")
 plt.imshow(lic, vmin = 0.25, vmax = 1.0, origin = 'lower', cmap = "gray", alpha = 0.5, interpolation = "bilinear")
 plt.tight_layout()
 #f2.savefig(os.path.join(save_files_here, 'lic_han_51.eps'), format='eps', dpi=1000, transparent = True)
-#plt.savefig(os.path.join(save_files_here, 'lic_han_51.png'), format='png', bbox_inches = 'tight')
+if save:
+    plt.savefig(os.path.join(save_files_here, 'lic.png'), format='png', bbox_inches = 'tight')
 
 ##################################################
 # For 250 um: v = 1000
@@ -166,15 +174,19 @@ f3.scalebar.set_corner('bottom right')
 f3.scalebar.set_label('10 pc')
 f3.tick_labels.set_yformat('dd.dd')
 f3.tick_labels.set_xformat('dd.dd')
+f3.ticks.set_color('white')
+f3.ticks.set_linewidth('2')
 f3.axis_labels.set_font(size=16)
-f3.tick_labels.set_font(size=14)
+f3.tick_labels.set_font(size=16)
 vmin = [5, 5, 5]
 vmax = [200, 200, 200]
 plt.imshow(mult, origin = 'lower',\
       cmap = "inferno", vmin = vmin[bands.index(band)],\
      vmax = vmax[bands.index(band)], interpolation = 'bilinear')
+reg(ax, f3, wcs, '--')
 #plt.tight_layout()
-#plt.savefig(os.path.join(save_files_here, 'lic2_han51.png'), format='png', bbox_inches = 'tight')
+if save:
+    plt.savefig(os.path.join(save_files_here, 'lic_mult.png'), format='png', bbox_inches = 'tight')
 
 """
 hdu4 = fits.PrimaryHDU(data=np.zeros_like(I), header=wcs.to_header())
