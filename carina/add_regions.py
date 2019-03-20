@@ -58,9 +58,9 @@ def car_regions(ax, f, wcs, ls = '-', add_text = True):
         ax.add_patch(r)
     
     if add_text:
-        f.add_label(161.58, -59.98, text = '5', size = 18, color = 'white')
-        f.add_label(160.59, -59.23, text = '4', size = 18, color = 'white')
-        f.add_label(160.51, -59.96, text = '1', size = 18, color = 'white')
-        f.add_label(ra_14 + 0.05, dec_14, text = '2', size = 18, color = 'white')
-        f.add_label(ra_16 + 0.08, dec_16, text = '3', size = 18, color = 'white')
+        f.add_label(161.58, -59.98, text = '5', size = 20, color = 'white')
+        f.add_label(160.59, -59.23, text = '4', size = 20, color = 'white')
+        f.add_label(160.51, -59.96, text = '1', size = 20, color = 'white')
+        f.add_label(ra_14 - 0.1, dec_14, text = '2', size = 20, color = 'white')
+        f.add_label(ra_16 + 0.08, dec_16, text = '3', size = 20, color = 'white')
     return

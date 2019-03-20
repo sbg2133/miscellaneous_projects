@@ -162,7 +162,7 @@ if save:
 # For 500 um: v = 200
 
 hdu3 = fits.PrimaryHDU(data=np.zeros_like(I), header=wcs.to_header())
-f3 = aplpy.FITSFigure(hdu3, figsize = (10,10))
+f3 = aplpy.FITSFigure(hdu3, figsize = (12,12))
 f3.set_theme('publication')
 #  scalebar
 ax = plt.gca()
@@ -186,7 +186,7 @@ plt.imshow(mult, origin = 'lower',\
 reg(ax, f3, wcs, '--')
 #plt.tight_layout()
 if save:
-    plt.savefig(os.path.join(save_files_here, 'lic_mult.png'), format='png', bbox_inches = 'tight')
+    plt.savefig(os.path.join(save_files_here, 'lic_mult.eps'), format='eps', bbox_inches = 'tight')
 
 """
 hdu4 = fits.PrimaryHDU(data=np.zeros_like(I), header=wcs.to_header())

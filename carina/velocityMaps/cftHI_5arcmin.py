@@ -114,6 +114,11 @@ if debias:
     #pvals[pvals < 0] = np.nan
     dx = np.cos(np.deg2rad(psi))
     dy = np.sin(np.deg2rad(psi))
+    # Galactic plane = 27 deg
+    #dx = np.cos(np.deg2rad((27.0)*np.ones_like(psi)))
+    #dy = np.sin(np.deg2rad((27.0)*np.ones_like(psi)))
+    #dx = np.cos(np.deg2rad(27.0 + psi))
+    #dy = np.sin(np.deg2rad(27.0 + psi))
 else:
     I, Q, U, __, wcs = IQU(blast_file, do_cov = False)
     Pvals = np.sqrt(Q**2 + U**2)
@@ -360,7 +365,6 @@ B_est2 = 1.0e6 * np.sqrt(0.5 * eta * rho_shell * (cs**2.0) * 8.0 * np.pi)
 print "B est1 lower limit (uG) =", B_est1
 print "B est2 lower limit (uG) =", B_est2
 
-
 mask_coords = np.column_stack((v_x.ravel(), v_y.ravel()))
 for coord in mask_coords[::120]:
 #    if coord[0] > 120 or coord[1] < 0:
@@ -382,15 +386,43 @@ pretty()
 if save:
     plt.savefig(os.path.join(save_files_here, 'HI_avg_vdisp.eps'), format='eps', bbox_inches = 'tight')
 """
+"""
+dx = dx[30:-30,230:-270]
+dy = dy[30:-30,230:-270]
+IX = IX[30:-30,230:-270]
+IY= IY[30:-30,230:-270]
+vectors = np.array([dx,dy])
+
+plt.figure()
+ax = plt.subplot(projection = wcs)
+plot_vectors(ax, vectors, IY, IX, nskip = 20, alph = 0.4, col = 'k', pot = False)
+overlay = ax.get_coords_overlay('galactic')
+overlay.grid(color='red', linestyle='solid', alpha=0.5)
+"""
 if plot:
+    ##########################################################
+    # Angle between Phi and galactic plane (90 deg = parallel)
+    plt.figure(figsize = (12,12))
+    Phi = psi[30:-30,260:-260]
+    z = Phi + 127.0 # 90 deg is parallel to galactic plane
+    z = z[~np.isnan(z)]
+    z[z > 180.0] -= 90
+    plt.hist(z, bins = 50, histtype='bar', ec='black', color = 'C0')
+    plt.xlabel(r"$\Phi$ (deg)")
+    plt.ylabel('Number of Sightlines')
+    pretty()
+    if save:
+        plt.savefig(os.path.join(save_files_here, 'Phi_hist.eps'), format='eps', bbox_inches = 'tight')
+
     ###########################################################
     # HISTOGRAM of S
     ###########################################################
+    S = S[30:-30,230:-270]
     S = S[~np.isnan(S)]
     S = S[S > 0]
     plt.figure(figsize = (12,12))
-    plt.hist(S, bins = 150, histtype='bar', ec='black', color = 'C0')
-    plt.xlabel(r"S [deg]")
+    plt.hist(S, bins = 50, histtype='bar', ec='black', color = 'C0')
+    plt.xlabel(r"S$_{\Phi}$ [deg]")
     plt.ylabel('Number of Sightlines')
     plt.xlim(0, 100)
     pretty()
@@ -400,8 +432,11 @@ if plot:
     ###########################################################
     # HISTOGRAM of V FWHM
     ###########################################################
+    Vtemp = V[30:-30,230:-270]
+    Vtemp = Vtemp[~np.isnan(Vtemp)]
+    Vtemp = Vtemp[Vtemp > 0]
     plt.figure(figsize = (12,12))
-    plt.hist(v_fwhm, bins = 150, histtype='bar', ec='black', color = 'C0')
+    plt.hist(Vtemp, bins = 50, histtype='bar', ec='black', color = 'C0')
     plt.xlabel(r"FWHM V$_{LOS}$ [km/s]")
     plt.ylabel('Number of Sightlines')
     if fit == 'lor':
@@ -416,7 +451,7 @@ if plot:
     # HISTOGRAM OF NH2 Column density
     ###########################################################
     plt.figure(figsize = (12,12))
-    plt.hist(np.log10(N), bins = 150, histtype='bar', ec='black', color = 'C0')
+    plt.hist(np.log10(N), bins = 100, histtype='bar', ec='black', color = 'C0')
     plt.xlabel(r"log$_{10}$ N(H$_{2})$ cm$^{-2}$")
     plt.ylabel('Number of Sightlines')
     plt.xlim(19.8, 22.8)
@@ -478,7 +513,7 @@ if plot:
     IY= IY[30:-30,230:-270]
     vectors = np.array([dx,dy])
     #plot_vectors(ax, vectors, IY, IX, nskip = 30, alph = 0.4, col = 'white', pot = False)
-    #plot_streams(ax, vectors, IX, IY, nskip = 30, alph = 0.5, col = 'yellow', vec = False)
+    plot_streams(ax, vectors, IX, IY, nskip = 30, alph = 0.5, col = 'yellow', vec = False)
     if save:
         plt.savefig(os.path.join(save_files_here, 'cftHI_5arcmin_' + str(band)\
                  + '_' + l + 'pc' + '.png'), format='png', bbox_inches = 'tight')
@@ -517,7 +552,7 @@ if plot:
     f.tick_labels.set_font(size=16)
     f.ticks.set_color('white')
     f.ticks.set_linewidth('2')
-    reg(ax, f, wcs, '--')
+    reg(ax, f, wcs, c = 'lime', ls = '--', add_dots = True)
     #f.add_colorbar()
     #f.colorbar.set_location('right')
     #f.colorbar.show()
@@ -600,7 +635,7 @@ if plot:
     plt.figure(figsize = (12,12))
     plt.hist(B0p5pc, bins = 150, histtype='bar', ec='black',\
           color = 'C0', alpha = 0.7, label = 'L = 0.5 pc')
-    plt.hist(B5pc, bins = 150, histtype='bar', ec='black',\
+    plt.hist(B5pc, bins = 100, histtype='bar', ec='black',\
           color = 'purple', alpha = 0.7, label = 'L = 5 pc')
     plt.xlabel(r"B$_{pos}$ $\mu$G")
     plt.ylabel('Number of Sightlines')
@@ -621,7 +656,7 @@ if plot:
     ax.spines['right'].set_color('none')
     ax.tick_params(labelcolor='w', top='off', bottom='off', left='off', right='off')
     ax1 = fig.add_subplot(121)
-    plt.hist(n0p5pc, bins = 150, histtype='bar', ec='black',\
+    plt.hist(n0p5pc, bins = 100, histtype='bar', ec='black',\
                 color = 'C0', alpha = 0.7, label = 'L = 0.5 pc')
     ax1.set_xlim(0, 6000)
     plt.legend(loc = 'upper right')
