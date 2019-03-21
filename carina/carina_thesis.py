@@ -72,7 +72,7 @@ f.colorbar.set_axis_label_font(size=18)
 f.colorbar.set_font(size = 18)
 f.colorbar.show()
 
-reg(ax, f, wcs, '--')
+reg(ax, f, wcs, c = 'lime', ls = '--', add_dots = False)
 
 if save:
     plt.savefig(os.path.join(save_files_here, 'carina_I250.eps'), format='eps', dpi = 500, bbox_inches = 'tight')

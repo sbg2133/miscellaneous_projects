@@ -183,7 +183,7 @@ vmax = [200, 200, 200]
 plt.imshow(mult, origin = 'lower',\
       cmap = "inferno", vmin = vmin[bands.index(band)],\
      vmax = vmax[bands.index(band)], interpolation = 'bilinear')
-reg(ax, f3, wcs, '--')
+reg(ax, f3, wcs, c = 'lime', ls = '--', add_dots = False)
 #plt.tight_layout()
 if save:
     plt.savefig(os.path.join(save_files_here, 'lic_mult.eps'), format='eps', bbox_inches = 'tight')
