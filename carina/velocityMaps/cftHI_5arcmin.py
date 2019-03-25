@@ -21,6 +21,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from fitFWHM import vfwhm
 from columnDensity import nH2
 from add_regions import car_regions as reg
+from scipy import stats
 plt.rcParams['xtick.direction'] = 'in'
 plt.rcParams['ytick.direction'] = 'in'
 plt.ion()
@@ -327,6 +328,9 @@ def Bmap_Vmap(pol_coords, pol_disp, vcoords, v_fwhm):
 
 B, B_interp, V, V_interp, S = Bmap_Vmap(pol_coords, pol_disp, vcoords, v_fwhm)
 
+b = B[~np.isnan(B)]
+print "<B> =", np.mean(b)
+print "sigma B =", np.std(b)
 np.save('tab_vals.npy', tab_vals)
 
 ############################################################################
@@ -335,9 +339,11 @@ np.save('tab_vals.npy', tab_vals)
 
 # add_regions.py
 Rout = 43 # arcmin
-rout = 35 # arcmin
+#Rout = 43 # arcmin
+rout = 41 # arcmin
 Rin = 28 # arcmin
-rin = 20 # arcmin
+# rin = 20 # arcmin
+rin = 26 # arcmin
 
 # Churchwell, Eq. 2
 R = 0.5*(np.sqrt(Rout*rout) + np.sqrt(Rin*rin))
@@ -399,14 +405,24 @@ plot_vectors(ax, vectors, IY, IX, nskip = 20, alph = 0.4, col = 'k', pot = False
 overlay = ax.get_coords_overlay('galactic')
 overlay.grid(color='red', linestyle='solid', alpha=0.5)
 """
+Phi = psi[30:-30,260:-260]
+z = Phi + 127.0 # 90 deg is parallel to galactic plane
+z = z[~np.isnan(z)]
+z[z > 180.0] -= 90
+print "<z> (deg) =", np.mean(z)
+print "sigma z (deg) =", np.std(z)
+# Percentage of vectors within +- 15 deg of galactic plane
+perc = len(z[np.where(np.logical_and(z>=(90 - 23.), z<=(90.0 + 23)))[0]])/float(len(z))
+print "% within +- 23 deg of gal plane =", perc
+Smean = np.mean(S[~np.isnan(S)])
+print "<S> (deg) =", np.mean(S[~np.isnan(S)])
+print "sigma S (deg) =", np.std(S[~np.isnan(S)])
+
+
 if plot:
     ##########################################################
     # Angle between Phi and galactic plane (90 deg = parallel)
     plt.figure(figsize = (12,12))
-    Phi = psi[30:-30,260:-260]
-    z = Phi + 127.0 # 90 deg is parallel to galactic plane
-    z = z[~np.isnan(z)]
-    z[z > 180.0] -= 90
     plt.hist(z, bins = 50, histtype='bar', ec='black', color = 'C0')
     plt.xlabel(r"$\Phi$ (deg)")
     plt.ylabel('Number of Sightlines')
@@ -514,6 +530,7 @@ if plot:
     vectors = np.array([dx,dy])
     #plot_vectors(ax, vectors, IY, IX, nskip = 30, alph = 0.4, col = 'white', pot = False)
     plot_streams(ax, vectors, IX, IY, nskip = 30, alph = 0.5, col = 'yellow', vec = False)
+    reg(ax, f, wcs, c = 'lime', ls = '--', add_dots = True)
     if save:
         plt.savefig(os.path.join(save_files_here, 'cftHI_5arcmin_' + str(band)\
                  + '_' + l + 'pc' + '.png'), format='png', bbox_inches = 'tight')
@@ -521,19 +538,17 @@ if plot:
     V = V[30:-30,230:-270]
     B = B[30:-30,230:-270]
     I = I[30:-30,230:-270]
-    #vectors = np.array([dx,dy])
 
     ###############################
     # B LIC FIGURE
     ###############################
-    wcs_new = wcs
-    wcs_new.wcs.crpix = np.array([-40.0, 25.0])
+    wcs.wcs.crpix = np.array([-40.0, 25.0])
     lic = np.loadtxt("../lic.dat")
     lic -= np.nanmin(lic)
     lic = np.transpose(lic)
     mult = lic*B_interp[30:-30,260:-260]
     mult -= np.nanmin(mult)
-    hdu = fits.PrimaryHDU(data=mult, header=wcs_new.to_header())
+    hdu = fits.PrimaryHDU(data=mult, header=wcs.to_header())
     f = aplpy.FITSFigure(hdu)
     f.set_theme('publication')
     ax = plt.gca()
@@ -553,6 +568,7 @@ if plot:
     f.ticks.set_color('white')
     f.ticks.set_linewidth('2')
     reg(ax, f, wcs, c = 'lime', ls = '--', add_dots = True)
+    wcs.wcs.crpix = np.array([ 220.,   50.])
     #f.add_colorbar()
     #f.colorbar.set_location('right')
     #f.colorbar.show()
@@ -597,57 +613,70 @@ if plot:
     if save:
         plt.savefig(os.path.join(save_files_here, 'VFWHM_vectors.png'), format='png', bbox_inches = 'tight')
 
+    def colorbar(mappable):
+        ax = mappable.axes
+        fig = ax.figure
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        return fig.colorbar(mappable, cax=cax)
+
     ####################################
     # B scatter with pol vectors
     ###################################
-    plt.figure(figsize = (12,12))
+    fig = plt.figure(figsize = (12, 14))
     plt.subplot(projection=wcs)
-    #ax.set_facecolor("k")
+    ax = plt.gca()
+    ax.set_facecolor("k")
     if fit == 'lor':
         plt.scatter(IX, IY, c = B, cmap = 'inferno', vmin = 10, vmax = 720)
     else:
         plt.scatter(IX, IY, c = B, cmap = 'inferno', vmin = 10, vmax = 720)
-    ax = plt.gca()
-    cbar = plt.colorbar(pad = 0.01)
-    cbar.set_label(r'B$_{pos}$ [$\mu$G]')
+    #cbar = plt.colorbar(pad = 0.1)
+    #cbar = fig.colorbar(b, orientation="horizontal", pad=0.1, aspect = 40)
+    #cbar.set_label(r'B$_{pos}$ [$\mu$G]')
     ax.coords['ra'].set_axislabel('RA (J2000)')
     ax.coords['dec'].set_axislabel('Dec (J2000)')
-    ax.tick_params(axis='both', width = 2)
+    #ax.tick_params(axis='both', which = 'both',  width = 2, color = 'white')
     plot_vectors(ax, vectors, IY, IX, nskip = 20, alph = 0.3, col = 'white', pot = False)
+    overlay = ax.get_coords_overlay('galactic')
+    overlay.grid(color='red', linestyle='solid', alpha=0.8)
+    reg(ax, f, wcs, c = 'lime', ls = '--', add_dots = True)
     if save:
         plt.savefig(os.path.join(save_files_here, 'B_vectors_' + str(band)\
                   + '_' + l + 'pc' + '.png'), format='png', bbox_inches = 'tight')
 
-    #overlay = ax.get_coords_overlay('galactic')
-    #overlay[0].set_axislabel('Galactic Longitude')
-    #overlay[1].set_axislabel('Galactic Latitude')
-    #overlay.grid(color='red', linestyle='solid', alpha=0.5)
     #ax.coords['ra'].set_ticks(color='white')
     #ax.coords['dec'].set_ticks(color='white')
     #ax.coords['ra'].set_axislabel('RA (J2000)')
     #ax.coords['dec'].set_axislabel('Dec (J2000)')
     #ax.coords.grid(color='red', linestyle='solid', alpha=0.5)
 
+    #############################################################
+    # B HISTOGRAM for 5 pc and 0.5 pc
+    #################################################################
     B0p5pc = np.load('Bhist_500_0p5pc.npy')
     B5pc = np.load('Bhist_500_5pc.npy')
     B5pc = B5pc[B5pc > 0.0]
     B0p5pc = B0p5pc[B0p5pc > 0.0]
     plt.figure(figsize = (12,12))
-    plt.hist(B0p5pc, bins = 150, histtype='bar', ec='black',\
-          color = 'C0', alpha = 0.7, label = 'L = 0.5 pc')
+    #plt.hist(B0p5pc, bins = 150, histtype='bar', ec='black',\
+    #      color = 'C0', alpha = 0.7, label = 'L = 0.5 pc')
     plt.hist(B5pc, bins = 100, histtype='bar', ec='black',\
           color = 'purple', alpha = 0.7, label = 'L = 5 pc')
     plt.xlabel(r"B$_{pos}$ $\mu$G")
     plt.ylabel('Number of Sightlines')
-    plt.xlim(10, 2000)
+    plt.xlim(0, 560)
     plt.legend(loc = 'upper right')
     pretty()
     if save:
         plt.savefig(os.path.join(save_files_here, 'B_hist_' + str(band) + '.eps'),\
            format='eps', bbox_inches = 'tight')
-
+    ##################################################
+    # nH2 HISTOGRAM for 5 pc
+    ###################################################
     n5pc = np.load('nH2_500_5pc_hist.npy')
     n0p5pc = np.load('nH2_500_0p5pc_hist.npy')
+    """
     fig = plt.figure(figsize = (17,12))
     ax = fig.add_subplot(111)
     ax.spines['top'].set_color('none')
@@ -671,75 +700,16 @@ if plot:
     ax.set_xlabel(r"n(H$_{2}$) cm$^{-3}$")
     ax.set_ylabel('Number of Sightlines')
     fig.subplots_adjust(wspace=0,hspace=0)
+    """
+    plt.figure(figsize = (12,12))
+    plt.hist(n5pc, bins = 200, histtype='bar', ec='black',\
+          color = 'purple', alpha = 0.7, label = 'L = 5 pc')
+    plt.xlabel(r"n(H$_{2}$) cm$^{-3}$")
+    plt.ylabel('Number of Sightlines')
+    plt.xlim(0, 600)
+    plt.legend(loc = 'upper right')
+    pretty()
     if save:
-        plt.savefig(os.path.join(save_files_here, 'nH2_hist_' + str(band) + '.png'),\
-           format='png', bbox_inches = 'tight')
+        plt.savefig(os.path.join(save_files_here, 'nH2_hist_' + str(band) + '.eps'),\
+           format='eps', bbox_inches = 'tight')
 
-    """
-    hdu = fits.PrimaryHDU(data=V_interp, header=wcs.to_header())
-    fv = aplpy.FITSFigure(hdu, figsize = (12, 12))
-    fv.set_theme('publication')
-    ax = plt.gca()
-    ax.set_facecolor("k")
-    fv.recenter(cen_coord[0], cen_coord[1], width = 1.4, height = 1.25)
-    fv.show_colorscale(cmap = 'viridis', smooth = 3,\
-         interpolation = 'hanning')
-    fv.add_scalebar(15/60.) # arcmin
-    fv.scalebar.set_color('white')
-    fv.scalebar.set_corner('bottom right')
-    fv.scalebar.set_label('10 pc')
-    fv.scalebar.set_linewidth('2')
-    fv.scalebar.set_font_size('16')
-    fv.tick_labels.set_yformat('dd.dd')
-    fv.tick_labels.set_xformat('dd.dd')
-    fv.axis_labels.set_font(size=16)
-    fv.tick_labels.set_font(size=16)
-    fv.ticks.set_color('white')
-    fv.ticks.set_linewidth('2')
-    fv.add_colorbar()
-    fv.colorbar.set_location('right')
-    fv.colorbar.show()
-    fv.colorbar.set_axis_label_text(r'$\sigma_{v}$ [km/s]')
-    fv.colorbar.set_axis_label_font(size = 16)
-    """
-    """
-    # H2 Number density (1/cm^3)
-    hdu = fits.PrimaryHDU(data=nH2, header=wcs.to_header())
-    f = aplpy.FITSFigure(hdu, figsize = (12, 12))
-    f.set_theme('publication')
-    ax = plt.gca()
-    ax.set_facecolor("k")
-    f.recenter(cen_coord[0], cen_coord[1], width = 1.4, height = 1.25)
-    f.show_colorscale(cmap = 'inferno', smooth = 3,\
-         interpolation = 'hanning')
-    f.add_scalebar(15/60.) # arcmin
-    f.scalebar.set_color('white')
-    f.scalebar.set_corner('bottom right')
-    f.scalebar.set_label('10 pc')
-    f.scalebar.set_linewidth('2')
-    f.scalebar.set_font_size('16')
-    f.tick_labels.set_yformat('dd.dd')
-    f.tick_labels.set_xformat('dd.dd')
-    f.axis_labels.set_font(size=16)
-    f.tick_labels.set_font(size=16)
-    f.ticks.set_color('white')
-    f.ticks.set_linewidth('2')
-    f.add_colorbar()
-    f.colorbar.set_location('right')
-    f.colorbar.show()
-    f.colorbar.set_axis_label_text(r'cm$^{-3}$')
-
-    dx = dx[30:-30,230:-270]
-    dy = dy[30:-30,230:-270]
-    IX = IX[30:-30,230:-270]
-    IY= IY[30:-30,230:-270]
-    vectors = np.array([dx,dy])
-    #plot_vectors(ax, vectors, IY, IX, nskip = 30, alph = 0.4, col = 'white', pot = False)
-    plot_streams(ax, vectors, IX, IY, nskip = 30, alph = 0.5, col = 'white', vec = False)
-    #plt.savefig(os.path.join(save_files_here, 'nH2_5arcmin.png'), format='png', bbox_inches = 'tight')
-
-    dx = dx[30:-30,230:-270]
-    dy = dy[30:-30,230:-270]
-    IX = IX[30:-30,230:-270]
-    IY= IY[30:-30,230:-270]
-    """

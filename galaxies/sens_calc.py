@@ -11,11 +11,15 @@ A_prim_tng = np.pi * (2.5/2.0) **2 # m^2
 
 #Ndet_tng = np.array([1836, 950, 460])
 Ndet_tng = np.array([1486, 638, 330])
-fwhm_tng = np.array([25., 35., 50.])
+#fwhm_tng = np.array([25., 35., 50.])
+fwhm_tng = np.array([30., 41., 59.])
 A_beam_tng = 1.13 * fwhm_tng**2 # arcsec^2
 crosspol = 1.0
 det_eff = 1.0
 map_eff = 1./np.sqrt(0.8)
+
+Iref = [188.7, 113.4, 42.4]
+tref = [17.8,6.4,0.9]
 
 # These values are for BLAST06, Laura's document
 # They are the noise in a 5 hr, 1 deg^2 map for
@@ -55,6 +59,12 @@ def I_min(mapsize, sig_p, t_map, band_idx):
     Imin = 2.0 * np.sqrt(2.0) * (noise_tng[band_idx] / sig_p) *\
            np.sqrt(n_beams / hour2sec(t_map)) # MJy/str
     return Imin
+
+def Ireq(band_idx, mapsize, t_map, sig_p):
+    return Iref[band_idx] * np.sqrt( mapsize )*np.sqrt(5.0/t_map)*(0.005/sig_p)
+
+def treq(band_idx, mapsize, sig_p, I_req):
+    return tref[band_idx] * mapsize * (0.005/sig_p)**2 * (100.0/I_req)**2
 
 def Bmod(nu, T):
     """ Returns the intensity from a source emitting as a modified BB with dust
